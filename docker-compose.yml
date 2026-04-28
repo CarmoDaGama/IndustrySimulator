@@ -15,6 +15,7 @@ services:
       - zookeeper
     ports:
       - "9092:9092"
+      - "29092:29092"
     environment:
       KAFKA_BROKER_ID: 1
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
@@ -23,6 +24,7 @@ services:
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
 
+  # PostgreSQL databases for each service
   postgres-db:
     image: postgres:16
     environment:
@@ -32,6 +34,86 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    command: 
+      - "postgres"
+      - "-c"
+      - "shared_preload_libraries=pg_stat_statements"
+
+  # Raw Material Service
+  raw-material-service:
+    build:
+      context: .
+      dockerfile: raw-material-service/Dockerfile
+    ports:
+      - "8081:8081"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-db:5432/raw_material_db
+      SPRING_DATASOURCE_USERNAME: industry_user
+      SPRING_DATASOURCE_PASSWORD: industry_password
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+    depends_on:
+      - postgres-db
+      - kafka
+    networks:
+      - industry-network
+
+  # Processing Service
+  processing-service:
+    build:
+      context: .
+      dockerfile: processing-service/Dockerfile
+    ports:
+      - "8082:8082"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-db:5432/processing_db
+      SPRING_DATASOURCE_USERNAME: industry_user
+      SPRING_DATASOURCE_PASSWORD: industry_password
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+    depends_on:
+      - postgres-db
+      - kafka
+    networks:
+      - industry-network
+
+  # Component Service
+  component-service:
+    build:
+      context: .
+      dockerfile: component-service/Dockerfile
+    ports:
+      - "8083:8083"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-db:5432/component_db
+      SPRING_DATASOURCE_USERNAME: industry_user
+      SPRING_DATASOURCE_PASSWORD: industry_password
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+    depends_on:
+      - postgres-db
+      - kafka
+    networks:
+      - industry-network
+
+  # Assembly Service
+  assembly-service:
+    build:
+      context: .
+      dockerfile: assembly-service/Dockerfile
+    ports:
+      - "8084:8084"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-db:5432/assembly_db
+      SPRING_DATASOURCE_USERNAME: industry_user
+      SPRING_DATASOURCE_PASSWORD: industry_password
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+    depends_on:
+      - postgres-db
+      - kafka
+    networks:
+      - industry-network
 
 volumes:
   postgres_data:
+
+networks:
+  industry-network:
+    driver: bridge

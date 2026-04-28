@@ -1,8 +1,8 @@
 spring:
   application:
-    name: raw-material-service
+    name: processing-service
   datasource:
-    url: jdbc:postgresql://postgres-db:5432/raw_material_db
+    url: jdbc:postgresql://postgres-db:5432/processing_db
     username: industry_user
     password: industry_password
     driver-class-name: org.postgresql.Driver
@@ -19,7 +19,7 @@ spring:
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
       acks: all
     consumer:
-      group-id: raw-material-group
+      group-id: processing-group
       auto-offset-reset: earliest
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
       value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
@@ -27,7 +27,7 @@ spring:
         spring.json.trusted.packages: com.industry.simulator.common
 
 server:
-  port: 8081
+  port: 8082
 
 management:
   endpoints:

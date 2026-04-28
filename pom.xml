@@ -19,6 +19,7 @@
         <module>common-models</module>
         <module>raw-material-service</module>
         <module>processing-service</module>
+        <module>component-service</module>
         <module>assembly-service</module>
     </modules>
 

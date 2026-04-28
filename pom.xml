@@ -10,7 +10,7 @@
     <packaging>pom</packaging>
 
     <properties>
-        <java.version>17</java.version>
+        <java.version>25</java.version>
         <spring-boot.version>3.2.4</spring-boot.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
@@ -18,8 +18,6 @@
     <modules>
         <module>common-models</module>
         <module>raw-material-service</module>
-        <module>processing-service</module>
-        <module>assembly-service</module>
     </modules>
 
     <dependencyManagement>

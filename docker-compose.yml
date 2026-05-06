@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   zookeeper:
     image: confluentinc/cp-zookeeper:7.5.0
@@ -31,7 +29,7 @@ services:
       POSTGRES_USER: industry_user
       POSTGRES_PASSWORD: industry_password
     ports:
-      - "5432:5432"
+      - "5433:5432"  # Changed from 5432 to 5433 to avoid conflicts
     volumes:
       - postgres_data:/var/lib/postgresql/data
     command: 

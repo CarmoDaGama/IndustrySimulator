@@ -2,6 +2,7 @@ import { Injectable } from '@angular/core';
 import { BehaviorSubject, Observable, interval } from 'rxjs';
 import { map, startWith } from 'rxjs/operators';
 import { KafkaEvent } from '../models';
+import { WebSocketService } from './websocket.service';
 
 /**
  * EventService
@@ -33,34 +34,18 @@ export class EventService {
   });
   inventoryUpdates = this.inventoryUpdates$.asObservable();
 
-  constructor() {
-    this.initializeEventPolling();
+  constructor(private websocketService: WebSocketService) {
+    this.initializeEventSubscription();
   }
 
   /**
-   * Initialize event polling mechanism
-   * Polls for events every 2 seconds (can be replaced with WebSocket later)
+   * Initialize event subscription from WebSocket
    */
-  private initializeEventPolling(): void {
-    // Polling mechanism for Kafka events
-    interval(2000)
-      .pipe(
-        startWith(0),
-        map(() => this.generateMockKafkaEvents())
-      )
-      .subscribe((events) => {
-        this.kafkaEvents$.next(events);
-      });
-
-    // Polling for production status
-    interval(1000)
-      .pipe(
-        startWith(0),
-        map(() => this.generateMockProductionStatus())
-      )
-      .subscribe((status) => {
-        this.productionStatus$.next(status);
-      });
+  private initializeEventSubscription(): void {
+    this.websocketService.kafkaEvents$.subscribe((event) => {
+      console.log('EventService: Received Kafka event from WebSocket:', event);
+      this.addEvent(event);
+    });
   }
 
   /**

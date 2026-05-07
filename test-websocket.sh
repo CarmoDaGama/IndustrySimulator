@@ -26,6 +26,18 @@ fi
 
 echo "Order Created with ID: $ORDER_ID"
 
+echo "Triggering RAW MATERIAL production (this will generate a REAL Kafka event)..."
+curl -s -X POST http://localhost:8081/api/raw-materials \
+  -H "Content-Type: application/json" \
+  -d '{
+    "materialName": "Steel Plate",
+    "materialType": "METAL",
+    "quantity": 500,
+    "unit": "KG"
+  }'
+echo ""
+sleep 2
+
 echo "Simulating status transitions via WebSocket trigger endpoint..."
 STATUSES=("PROCESSING" "ASSEMBLED" "SHIPPED" "COMPLETED")
 

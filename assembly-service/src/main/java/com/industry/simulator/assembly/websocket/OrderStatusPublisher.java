@@ -4,6 +4,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import java.time.LocalDateTime;
+import java.util.HashMap;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -33,6 +35,18 @@ public class OrderStatusPublisher {
                 "/topic/orders/all",
                 event
         );
+
+        // Bridge to the general Events Monitor
+        Map<String, Object> kafkaStyleEvent = new HashMap<>();
+        kafkaStyleEvent.put("eventId", java.util.UUID.randomUUID().toString());
+        kafkaStyleEvent.put("eventType", "OrderStatusUpdate");
+        kafkaStyleEvent.put("batchId", orderId);
+        kafkaStyleEvent.put("status", status);
+        kafkaStyleEvent.put("purpose", "order");
+        kafkaStyleEvent.put("timestamp", java.time.LocalDateTime.now().toString());
+        kafkaStyleEvent.put("details", event);
+        
+        messagingTemplate.convertAndSend("/topic/events", kafkaStyleEvent);
     }
 
     public void publishOrderCreated(String orderId, String productType, Integer quantity, String customerName) {

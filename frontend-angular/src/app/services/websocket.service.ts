@@ -19,9 +19,11 @@ export interface OrderStatusEvent {
 export class WebSocketService implements OnDestroy {
   private stompClient: Client | null = null;
   private orderStatusSubject = new Subject<OrderStatusEvent>();
+  private kafkaEventsSubject = new Subject<any>();
   private connectionStatusSubject = new BehaviorSubject<boolean>(false);
 
   public orderStatus$ = this.orderStatusSubject.asObservable();
+  public kafkaEvents$ = this.kafkaEventsSubject.asObservable();
   public isConnected$ = this.connectionStatusSubject.asObservable();
 
   // The Assembly Service is where the WebSocket endpoint is hosted
@@ -50,8 +52,9 @@ export class WebSocketService implements OnDestroy {
       console.log('STOMP Connected: ' + frame);
       this.connectionStatusSubject.next(true);
       
-      // Subscribe to all orders by default
+      // Subscribe to all orders and general events by default
       this.subscribeToOrderUpdates();
+      this.subscribeToKafkaEvents();
     };
 
     this.stompClient.onStompError = (frame) => {
@@ -78,6 +81,21 @@ export class WebSocketService implements OnDestroy {
           this.orderStatusSubject.next(event);
         } catch (e) {
           console.error('Error parsing order status message:', e);
+        }
+      }
+    });
+  }
+
+  private subscribeToKafkaEvents(): void {
+    if (!this.stompClient || !this.stompClient.active) return;
+
+    this.stompClient.subscribe('/topic/events', (message: Message) => {
+      if (message.body) {
+        try {
+          const event = JSON.parse(message.body);
+          this.kafkaEventsSubject.next(event);
+        } catch (e) {
+          console.error('Error parsing kafka event message:', e);
         }
       }
     });

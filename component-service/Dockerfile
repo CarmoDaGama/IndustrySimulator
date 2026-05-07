@@ -11,8 +11,18 @@ COPY processing-service processing-service
 COPY component-service component-service
 COPY assembly-service assembly-service
 
-# Build project
-RUN mvn clean package -DskipTests -pl common-models,component-service -am
+# Build project with retry logic and increased timeouts
+RUN mvn clean package -DskipTests -pl common-models,component-service -am \
+    -Dhttp.keepAlive=false \
+    -Dmaven.wagon.http.retryHandler.class=standard \
+    -Dmaven.wagon.http.retryHandler.count=5 \
+    -Dmaven.wagon.http.pool.persistent=false \
+    -Dmaven.wagon.rto=300000 || \
+    (sleep 10 && mvn clean package -DskipTests -pl common-models,component-service -am \
+    -Dhttp.keepAlive=false \
+    -Dmaven.wagon.http.retryHandler.class=standard \
+    -Dmaven.wagon.http.retryHandler.count=5 \
+    -Dmaven.wagon.rto=300000)
 
 # Runtime stage
 FROM eclipse-temurin:17-jre-alpine

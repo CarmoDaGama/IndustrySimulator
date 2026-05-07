@@ -1,0 +1,278 @@
+
+
+services:
+  # Zookeeper
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
+    container_name: industry-zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    ports:
+      - "2181:2181"
+    networks:
+      - industry-network
+    restart: unless-stopped
+    healthcheck:
+      test: echo ruok | nc localhost 2181
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Kafka
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: industry-kafka
+    depends_on:
+      zookeeper:
+        condition: service_healthy
+    ports:
+      - "9092:9092"
+      - "29092:29092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'false'
+    networks:
+      - industry-network
+    restart: unless-stopped
+    healthcheck:
+      test: kafka-broker-api-versions --bootstrap-server kafka:29092
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Kafka Topics Initializer
+  kafka-init:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: industry-kafka-init
+    depends_on:
+      kafka:
+        condition: service_healthy
+    entrypoint: >
+      bash -c "
+      echo 'Creating Kafka topics...'
+      kafka-topics --bootstrap-server kafka:29092 --create --topic raw-material-produced --partitions 1 --replication-factor 1 --if-not-exists
+      kafka-topics --bootstrap-server kafka:29092 --create --topic processing-completed --partitions 1 --replication-factor 1 --if-not-exists
+      kafka-topics --bootstrap-server kafka:29092 --create --topic component-assembled --partitions 1 --replication-factor 1 --if-not-exists
+      kafka-topics --bootstrap-server kafka:29092 --create --topic product-assembled --partitions 1 --replication-factor 1 --if-not-exists
+      kafka-topics --bootstrap-server kafka:29092 --create --topic inventory-updated --partitions 1 --replication-factor 1 --if-not-exists
+      echo 'Kafka topics created successfully!'
+      "
+    networks:
+      - industry-network
+    restart: on-failure
+
+  # PostgreSQL for Raw Material Service
+  postgres-raw-material:
+    image: postgres:16-alpine
+    container_name: industry-postgres-raw-material
+    environment:
+      POSTGRES_DB: raw_material_db
+      POSTGRES_USER: industry_user
+      POSTGRES_PASSWORD: industry_password
+    ports:
+      - "5431:5432"
+    volumes:
+      - postgres_raw_material_data:/var/lib/postgresql/data
+      - ./docker-init/raw-material.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - industry-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U industry_user -d raw_material_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # PostgreSQL for Processing Service
+  postgres-processing:
+    image: postgres:16-alpine
+    container_name: industry-postgres-processing
+    environment:
+      POSTGRES_DB: processing_db
+      POSTGRES_USER: industry_user
+      POSTGRES_PASSWORD: industry_password
+    ports:
+      - "5435:5432"
+    volumes:
+      - postgres_processing_data:/var/lib/postgresql/data
+      - ./docker-init/processing.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - industry-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U industry_user -d processing_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # PostgreSQL for Component Service
+  postgres-component:
+    image: postgres:16-alpine
+    container_name: industry-postgres-component
+    environment:
+      POSTGRES_DB: component_db
+      POSTGRES_USER: industry_user
+      POSTGRES_PASSWORD: industry_password
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_component_data:/var/lib/postgresql/data
+      - ./docker-init/component.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - industry-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U industry_user -d component_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # PostgreSQL for Assembly Service
+  postgres-assembly:
+    image: postgres:16-alpine
+    container_name: industry-postgres-assembly
+    environment:
+      POSTGRES_DB: assembly_db
+      POSTGRES_USER: industry_user
+      POSTGRES_PASSWORD: industry_password
+    ports:
+      - "5434:5432"
+    volumes:
+      - postgres_assembly_data:/var/lib/postgresql/data
+      - ./docker-init/assembly.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - industry-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U industry_user -d assembly_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Raw Material Service
+  raw-material-service:
+    build:
+      context: .
+      dockerfile: raw-material-service/Dockerfile
+    container_name: industry-raw-material-service
+    ports:
+      - "8081:8081"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-raw-material:5432/raw_material_db
+      SPRING_DATASOURCE_USERNAME: industry_user
+      SPRING_DATASOURCE_PASSWORD: industry_password
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      SERVER_PORT: 8081
+    depends_on:
+      postgres-raw-material:
+        condition: service_healthy
+      kafka-init:
+        condition: service_completed_successfully
+    networks:
+      - industry-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8081/api/raw-materials/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+
+  # Processing Service
+  processing-service:
+    build:
+      context: .
+      dockerfile: processing-service/Dockerfile
+    container_name: industry-processing-service
+    ports:
+      - "8082:8082"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-processing:5432/processing_db
+      SPRING_DATASOURCE_USERNAME: industry_user
+      SPRING_DATASOURCE_PASSWORD: industry_password
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      SERVER_PORT: 8082
+    depends_on:
+      postgres-processing:
+        condition: service_healthy
+      kafka-init:
+        condition: service_completed_successfully
+    networks:
+      - industry-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8082/api/processing/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+
+  # Component Service
+  component-service:
+    build:
+      context: .
+      dockerfile: component-service/Dockerfile
+    container_name: industry-component-service
+    ports:
+      - "8083:8083"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-component:5432/component_db
+      SPRING_DATASOURCE_USERNAME: industry_user
+      SPRING_DATASOURCE_PASSWORD: industry_password
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      SERVER_PORT: 8083
+    depends_on:
+      postgres-component:
+        condition: service_healthy
+      kafka-init:
+        condition: service_completed_successfully
+    networks:
+      - industry-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8083/api/components/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+
+  # Assembly Service
+  assembly-service:
+    build:
+      context: .
+      dockerfile: assembly-service/Dockerfile
+    container_name: industry-assembly-service
+    ports:
+      - "8084:8084"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-assembly:5432/assembly_db
+      SPRING_DATASOURCE_USERNAME: industry_user
+      SPRING_DATASOURCE_PASSWORD: industry_password
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      SERVER_PORT: 8084
+    depends_on:
+      postgres-assembly:
+        condition: service_healthy
+      kafka-init:
+        condition: service_completed_successfully
+    networks:
+      - industry-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8084/api/assembly/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+
+volumes:
+  postgres_raw_material_data:
+  postgres_processing_data:
+  postgres_component_data:
+  postgres_assembly_data:
+
+networks:
+  industry-network:
+    driver: bridge

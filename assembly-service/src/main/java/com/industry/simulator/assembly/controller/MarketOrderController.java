@@ -11,7 +11,8 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/market-orders")
+@RequestMapping("/api/assembly/market-orders")
+@CrossOrigin("*")
 public class MarketOrderController {
 
     @Autowired
@@ -19,7 +20,7 @@ public class MarketOrderController {
 
     @PostMapping
     public ResponseEntity<MarketOrderResponse> createOrder(@RequestBody MarketOrderRequest request) {
-        MarketOrderResponse response = service.createOrder(request.getProductName(), request.getQuantity());
+        MarketOrderResponse response = service.createOrder(request);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 

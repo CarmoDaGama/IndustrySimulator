@@ -23,6 +23,9 @@ public class RawMaterialConsumer {
     @Autowired
     private ProcessingProducer producer;
 
+    @Autowired
+    private com.industry.simulator.processing.repository.PipelineStepRepository pipelineRepository;
+
     @KafkaListener(topics = "raw-material-produced", groupId = "processing-group")
     public void consumeRawMaterial(RawMaterialProducedEvent event) {
         log.info("Processing service received raw material event: {}", event.getBatchId());
@@ -31,9 +34,17 @@ public class RawMaterialConsumer {
             // Simulate async processing with delay
             CompletableFuture.runAsync(() -> {
                 try {
-                    // Simulate processing time
-                    long processingDuration = 5000; // 5 seconds default
-                    log.info("Starting processing for batch {}, duration: {}ms", event.getBatchId(), processingDuration);
+                    // Fetch pipeline steps to determine duration
+                    java.util.List<com.industry.simulator.processing.entity.PipelineStep> steps = pipelineRepository.findAllByIsActiveOrderByStepOrderAsc(true);
+                    long processingDuration = steps.stream().mapToLong(s -> s.getDurationMs()).sum();
+                    
+                    if (processingDuration <= 0) {
+                        processingDuration = 2000; // Fallback to 2 seconds if no steps configured
+                    }
+
+                    log.info("Starting processing for batch {} using {} pipeline steps. Total duration: {}ms", 
+                             event.getBatchId(), steps.size(), processingDuration);
+                    
                     Thread.sleep(processingDuration);
 
                     // Save processed material to database

@@ -19,23 +19,69 @@ dependency-reduced-pom.xml
 *~
 *.iml
 *.iws
-.DS_Store
+.classpath
+.project
+.c9/
+*.code-workspace
 
 # Logs
 *.log
 logs/
 
-# Database
-*.db
-*.sqlite
-postgres_data/
+# Node.js / Angular
+node_modules/
+dist/
+.angular/
+build/
+*.tsbuildinfo
+
+# NPM / Yarn
+package-lock.json
+yarn.lock
+.npm/
+.yarn/
+
+# Build artifacts
+.gradle/
+
+# Cache
+.cache/
+.eslintcache
+.parcelcache
+.pytest_cache/
+.vuepress/dist
 
 # Environment
 .env
 .env.local
+.env.*.local
 
 # Docker
 .dockerignore
+
+# IDE/Editor cache
+.idea/**/workspace.xml
+.idea/**/shelf.xml
+.vscode/**/settings.json
+.vscode/**/launch.json
+
+# Certificates and keys
+*.pem
+*.key
+*.crt
+*.pfx
+
+# Temporary files
+*.tmp
+*.temp
+*.orig
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+*.sqlite-wal
+postgres_data/
 
 # OS
 .DS_Store

@@ -13,6 +13,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 @RestController
+@CrossOrigin("*")
 @RequestMapping("/api/raw-materials")
 public class RawMaterialController {
 

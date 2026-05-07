@@ -3,6 +3,7 @@ package com.industry.simulator.assembly.controller;
 import com.industry.simulator.assembly.dto.MarketOrderRequest;
 import com.industry.simulator.assembly.dto.MarketOrderResponse;
 import com.industry.simulator.assembly.service.MarketOrderService;
+import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -19,7 +20,7 @@ public class MarketOrderController {
     private MarketOrderService service;
 
     @PostMapping
-    public ResponseEntity<MarketOrderResponse> createOrder(@RequestBody MarketOrderRequest request) {
+    public ResponseEntity<MarketOrderResponse> createOrder(@Valid @RequestBody MarketOrderRequest request) {
         MarketOrderResponse response = service.createOrder(request);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }

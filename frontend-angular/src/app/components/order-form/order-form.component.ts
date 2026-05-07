@@ -1,14 +1,18 @@
-import { Component, OnInit, signal } from '@angular/core';
+import { Component, OnInit, signal, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ApiService } from '../../services/api.service';
 import { EventService } from '../../services/event.service';
+import { WebSocketService, OrderStatusEvent } from '../../services/websocket.service';
 import { ProductionRequest } from '../../models';
+import { Subject } from 'rxjs';
+import { takeUntil } from 'rxjs/operators';
 
 /**
  * OrderFormComponent
  * Allows customers to create market orders for car production
  * Includes product type, quantity, and delivery date configuration
+ * Also provides real-time order status updates via WebSocket
  */
 @Component({
   selector: 'app-order-form',
@@ -167,6 +171,36 @@ import { ProductionRequest } from '../../models';
 
           <div *ngIf="errorMessage()" class="message error">
             {{ errorMessage() }}
+          </div>
+
+          <!-- Order Status Live Updates -->
+          <div *ngIf="createdOrderId()" class="status-section">
+            <h3><i class="material-icons">info</i> Status em tempo real do pedido</h3>
+            
+            <div class="status-header">
+              <div class="status-info">
+                <span class="label">ID do Pedido:</span>
+                <span class="value">{{ createdOrderId() }}</span>
+              </div>
+              <div class="status-badge" [class]="'status-' + orderStatus().toLowerCase()">
+                {{ orderStatus() || 'PENDING' }}
+              </div>
+              <div class="connection-indicator" [class.connected]="wsConnected()">
+                <i class="material-icons">{{ wsConnected() ? 'cloud_done' : 'cloud_off' }}</i>
+                {{ wsConnected() ? 'Conectado' : 'Desconectado' }}
+              </div>
+            </div>
+
+            <div *ngIf="orderStatusUpdates().length > 0" class="status-updates">
+              <h4>Histórico de atualizações:</h4>
+              <div class="updates-list">
+                <div *ngFor="let update of orderStatusUpdates()" class="update-item" [class]="'status-' + update.status.toLowerCase()">
+                  <div class="update-status">{{ update.status }}</div>
+                  <div class="update-message">{{ update.message }}</div>
+                  <div class="update-time">{{ update.updatedAt | date:'short' }}</div>
+                </div>
+              </div>
+            </div>
           </div>
         </form>
       </div>
@@ -379,6 +413,181 @@ import { ProductionRequest } from '../../models';
         border-left: 4px solid var(--primary-dark);
       }
 
+      .status-section {
+        background: #f0f9ff;
+        border: 2px solid var(--primary-color);
+        border-radius: 6px;
+        padding: 1.5rem;
+        margin-top: 1.5rem;
+      }
+
+      .status-section h3 {
+        margin: 0 0 1rem 0;
+        color: var(--primary-dark);
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+      }
+
+      .status-section .material-icons {
+        font-size: 1.3rem;
+      }
+
+      .status-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 1rem;
+        background: white;
+        border-radius: 4px;
+        margin-bottom: 1rem;
+        flex-wrap: wrap;
+        gap: 1rem;
+      }
+
+      .status-info {
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+      }
+
+      .status-info .label {
+        font-size: 0.85rem;
+        color: #64748b;
+        font-weight: 600;
+      }
+
+      .status-info .value {
+        font-family: monospace;
+        font-size: 0.95rem;
+        color: #1e293b;
+        font-weight: 600;
+      }
+
+      .status-badge {
+        padding: 0.5rem 1rem;
+        border-radius: 20px;
+        font-weight: 700;
+        font-size: 0.9rem;
+        text-transform: uppercase;
+      }
+
+      .status-pending {
+        background: #fef08a;
+        color: #78350f;
+      }
+
+      .status-processing {
+        background: #bfdbfe;
+        color: #1e3a8a;
+      }
+
+      .status-assembled {
+        background: #bbf7d0;
+        color: #065f46;
+      }
+
+      .status-shipped {
+        background: #c7d2fe;
+        color: #3730a3;
+      }
+
+      .status-completed {
+        background: #86efac;
+        color: #15803d;
+      }
+
+      .status-failed {
+        background: #fca5a5;
+        color: #7f1d1d;
+      }
+
+      .connection-indicator {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.5rem 1rem;
+        border-radius: 4px;
+        background: #f1f5f9;
+        font-size: 0.9rem;
+        color: #64748b;
+      }
+
+      .connection-indicator.connected {
+        background: #dcfce7;
+        color: #166534;
+      }
+
+      .connection-indicator .material-icons {
+        font-size: 1.1rem;
+      }
+
+      .status-updates {
+        background: white;
+        border-radius: 4px;
+        padding: 1rem;
+      }
+
+      .status-updates h4 {
+        margin: 0 0 1rem 0;
+        font-size: 0.95rem;
+        color: #475569;
+      }
+
+      .updates-list {
+        display: flex;
+        flex-direction: column-reverse;
+        gap: 0.75rem;
+      }
+
+      .update-item {
+        padding: 0.75rem;
+        border-left: 4px solid #cbd5e1;
+        border-radius: 2px;
+        background: #f8fafc;
+      }
+
+      .update-item.status-pending {
+        border-left-color: #fbbf24;
+      }
+
+      .update-item.status-processing {
+        border-left-color: #60a5fa;
+      }
+
+      .update-item.status-assembled {
+        border-left-color: #34d399;
+      }
+
+      .update-item.status-shipped {
+        border-left-color: #818cf8;
+      }
+
+      .update-item.status-completed {
+        border-left-color: #4ade80;
+      }
+
+      .update-item.status-failed {
+        border-left-color: #f87171;
+      }
+
+      .update-status {
+        font-weight: 700;
+        font-size: 0.9rem;
+        margin-bottom: 0.25rem;
+      }
+
+      .update-message {
+        font-size: 0.9rem;
+        color: #475569;
+        margin-bottom: 0.25rem;
+      }
+
+      .update-time {
+        font-size: 0.8rem;
+        color: #94a3b8;
+      }
+
       @media (max-width: 768px) {
         .form-content {
           padding: 1rem;
@@ -399,7 +608,7 @@ import { ProductionRequest } from '../../models';
     `,
   ],
 })
-export class OrderFormComponent implements OnInit {
+export class OrderFormComponent implements OnInit, OnDestroy {
   orderData: ProductionRequest = {
     productType: '',
     quantity: 1,
@@ -413,11 +622,48 @@ export class OrderFormComponent implements OnInit {
   isLoading = signal(false);
   successMessage = signal<string>('');
   errorMessage = signal<string>('');
+  createdOrderId = signal<string>('');
+  orderStatus = signal<string>('');
+  orderStatusUpdates = signal<OrderStatusEvent[]>([]);
+  wsConnected = signal(false);
 
-  constructor(private apiService: ApiService, private eventService: EventService) {}
+  private destroy$ = new Subject<void>();
+
+  constructor(
+    private apiService: ApiService,
+    private eventService: EventService,
+    private webSocketService: WebSocketService
+  ) {}
 
   ngOnInit(): void {
     this.setDefaultDeliveryDate();
+    this.connectWebSocket();
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+  }
+
+  private connectWebSocket(): void {
+    this.webSocketService.connect();
+    
+    this.webSocketService.isConnected$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(connected => {
+        this.wsConnected.set(connected);
+      });
+
+    this.webSocketService.orderStatus$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(statusEvent => {
+        // If this is our created order, track the update
+        if (this.createdOrderId() && statusEvent.orderId === this.createdOrderId()) {
+          this.orderStatus.set(statusEvent.status);
+          const updates = [statusEvent, ...this.orderStatusUpdates()];
+          this.orderStatusUpdates.set(updates.slice(0, 10)); // Keep last 10 updates
+        }
+      });
   }
 
   private setDefaultDeliveryDate(): void {
@@ -436,7 +682,14 @@ export class OrderFormComponent implements OnInit {
 
     this.apiService.createMarketOrder(this.orderData).subscribe({
       next: (response) => {
-        this.successMessage.set(`Pedido criado com sucesso! ID do pedido: ${response.orderId}`);
+        this.createdOrderId.set(response.orderId);
+        this.orderStatus.set('PENDING');
+        this.orderStatusUpdates.set([]);
+        
+        // Subscribe to this specific order's updates
+        this.webSocketService.subscribeToOrder(response.orderId);
+        
+        this.successMessage.set(`Pedido criado com sucesso! ID: ${response.orderId}`);
         this.resetForm();
         this.isLoading.set(false);
         setTimeout(() => this.successMessage.set(''), 5000);

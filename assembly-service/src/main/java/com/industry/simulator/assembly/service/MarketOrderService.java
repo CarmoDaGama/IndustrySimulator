@@ -6,6 +6,7 @@ import com.industry.simulator.assembly.entity.MarketOrder;
 import com.industry.simulator.assembly.entity.Inventory;
 import com.industry.simulator.assembly.repository.MarketOrderRepository;
 import com.industry.simulator.assembly.repository.InventoryRepository;
+import com.industry.simulator.assembly.websocket.OrderStatusPublisher;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -25,6 +26,9 @@ public class MarketOrderService {
 
     @Autowired
     private InventoryRepository inventoryRepository;
+
+    @Autowired
+    private OrderStatusPublisher orderStatusPublisher;
 
     public MarketOrderResponse createOrder(MarketOrderRequest request) {
         log.info("Creating market order for product {} with quantity {}", request.getProductType(), request.getQuantity());
@@ -61,6 +65,11 @@ public class MarketOrderService {
         }
 
         marketOrderRepository.save(order);
+
+        // Publish WebSocket event
+        orderStatusPublisher.publishOrderCreated(order.getOrderId(), request.getProductType(), 
+                                                 request.getQuantity(), request.getCustomerName());
+
         return toResponse(order);
     }
 

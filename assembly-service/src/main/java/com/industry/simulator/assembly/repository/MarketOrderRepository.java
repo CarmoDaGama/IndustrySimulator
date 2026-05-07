@@ -10,6 +10,6 @@ import java.util.Optional;
 @Repository
 public interface MarketOrderRepository extends JpaRepository<MarketOrder, Long> {
     Optional<MarketOrder> findByOrderId(String orderId);
-    List<MarketOrder> findByProductName(String productName);
+    List<MarketOrder> findByProductType(String productType);
     List<MarketOrder> findByStatus(String status);
 }

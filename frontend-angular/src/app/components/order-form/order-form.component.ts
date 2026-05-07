@@ -612,7 +612,7 @@ export class OrderFormComponent implements OnInit, OnDestroy {
   orderData: ProductionRequest = {
     productType: '',
     quantity: 1,
-    bomVersion: '',
+    bomVersion: 'v1.0.0',
     customerName: '',
     requiredDeliveryDate: new Date(),
     priority: 1,
@@ -734,7 +734,7 @@ export class OrderFormComponent implements OnInit, OnDestroy {
     this.orderData = {
       productType: '',
       quantity: 1,
-      bomVersion: '',
+      bomVersion: 'v1.0.0',
       customerName: '',
       requiredDeliveryDate: new Date(),
       priority: 1,

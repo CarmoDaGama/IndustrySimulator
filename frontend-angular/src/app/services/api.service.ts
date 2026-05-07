@@ -151,7 +151,14 @@ export class ApiService {
   // ASSEMBLY SERVICE
   // ============================================================================
 
-  createMarketOrder(order: ProductionRequest): Observable<MarketOrder> {
+  createMarketOrder(order: ProductionRequest = {
+    productType: '',
+    quantity: 1,
+    bomVersion: 'v1.0.0',
+    customerName: '',
+    requiredDeliveryDate: new Date(),
+    priority: 1,
+  }): Observable<MarketOrder> {
     this.setLoading(true);
     return this.http
       .post<MarketOrder>(`${this.assemblyUrl}/market-orders`, order)
@@ -234,7 +241,9 @@ export class ApiService {
     if (error.error instanceof ErrorEvent) {
       errorMessage = `Erro: ${error.error.message}`;
     } else {
-      errorMessage = `Código do erro: ${error.status}\nMensagem: ${error.message}`;
+      // Extract detailed message from backend response if available
+      const backendMessage = error.error?.message || error.message;
+      errorMessage = `Erro ${error.status}: ${backendMessage}`;
     }
     this.error$.next(errorMessage);
     console.error(errorMessage);

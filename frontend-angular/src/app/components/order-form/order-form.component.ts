@@ -21,8 +21,8 @@ import { takeUntil } from 'rxjs/operators';
   template: `
     <div class="order-form-container">
       <div class="form-header">
-        <h2><i class="material-icons">assignment</i> Novo pedido de produção</h2>
-        <p class="description">Crie um novo pedido de mercado para a produção do veículo</p>
+        <h2><i class="material-icons">rocket_launch</i> Iniciar Produção de Carro</h2>
+        <p class="description">Configure e inicie o ciclo de vida completo de produção de um novo veículo</p>
       </div>
 
       <div class="form-content">
@@ -155,8 +155,8 @@ import { takeUntil } from 'rxjs/operators';
           <!-- Form Actions -->
           <div class="form-actions">
             <button type="submit" class="btn btn-primary" [disabled]="isLoading()">
-              <i class="material-icons">{{ isLoading() ? 'hourglass_top' : 'check_circle' }}</i>
-              {{ isLoading() ? 'Processando...' : 'Criar pedido' }}
+              <i class="material-icons">{{ isLoading() ? 'hourglass_top' : 'play_circle' }}</i>
+              {{ isLoading() ? 'Processando...' : 'Iniciar Produção' }}
             </button>
             <button type="reset" class="btn btn-secondary" (click)="resetForm()">
               <i class="material-icons">refresh</i>

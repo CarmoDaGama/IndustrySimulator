@@ -21,11 +21,18 @@ import {
   providedIn: 'root',
 })
 export class ApiService {
-  // Service base URLs
-  private rawMaterialUrl = 'http://localhost:8081/api/raw-materials';
-  private processingUrl = 'http://localhost:8082/api/processing';
-  private componentUrl = 'http://localhost:8083/api/components';
-  private assemblyUrl = 'http://localhost:8084/api/assembly';
+  // Service base URLs (assume standard local ports as per docker-compose)
+  private readonly BASE_URLS = {
+    RAW_MATERIAL: 'http://localhost:8081/api/raw-materials',
+    PROCESSING: 'http://localhost:8082/api/processing',
+    COMPONENT: 'http://localhost:8083/api/components',
+    ASSEMBLY: 'http://localhost:8084/api'
+  };
+
+  private rawMaterialUrl = this.BASE_URLS.RAW_MATERIAL;
+  private processingUrl = this.BASE_URLS.PROCESSING;
+  private componentUrl = this.BASE_URLS.COMPONENT;
+  private assemblyUrl = this.BASE_URLS.ASSEMBLY;
 
   // Observable for loading state
   private loading$ = new BehaviorSubject<boolean>(false);

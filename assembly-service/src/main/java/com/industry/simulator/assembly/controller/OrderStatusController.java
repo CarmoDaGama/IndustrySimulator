@@ -14,9 +14,9 @@ public class OrderStatusController {
 
     @PostMapping("/{orderId}/status")
     public ResponseEntity<Void> updateOrderStatus(
-            @PathVariable String orderId,
-            @RequestParam String status,
-            @RequestParam(required = false) String message) {
+            @PathVariable("orderId") String orderId,
+            @RequestParam("status") String status,
+            @RequestParam(value = "message", required = false) String message) {
         
         switch (status.toUpperCase()) {
             case "PROCESSING":

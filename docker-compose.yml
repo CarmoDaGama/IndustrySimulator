@@ -178,7 +178,7 @@ services:
       - industry-network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8081/api/raw-materials/health"]
+      test: ["CMD-SHELL", "wget -q -O - http://localhost:8081/api/raw-materials/health || exit 1"]
       interval: 15s
       timeout: 5s
       retries: 3
@@ -206,7 +206,7 @@ services:
       - industry-network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8082/api/processing/health"]
+      test: ["CMD-SHELL", "wget -q -O - http://localhost:8082/api/processing/health || exit 1"]
       interval: 15s
       timeout: 5s
       retries: 3
@@ -234,7 +234,7 @@ services:
       - industry-network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8083/api/components/health"]
+      test: ["CMD-SHELL", "wget -q -O - http://localhost:8083/api/components/health || exit 1"]
       interval: 15s
       timeout: 5s
       retries: 3
@@ -262,7 +262,7 @@ services:
       - industry-network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8084/api/assembly/health"]
+      test: ["CMD-SHELL", "wget -q -O - http://localhost:8084/api/market-orders/health || exit 1"]
       interval: 15s
       timeout: 5s
       retries: 3

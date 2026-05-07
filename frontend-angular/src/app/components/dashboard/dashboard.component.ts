@@ -453,6 +453,10 @@ import { ApiService } from '../../services/api.service';
 })
 export class DashboardComponent implements OnInit {
   activeTab = signal<string>('configuration');
+  totalOrders = signal<number>(0);
+  completedOrders = signal<number>(0);
+  pendingOrders = signal<number>(0);
+  eventCount = signal<number>(0);
 
   tabs = [
     { id: 'configuration', label: 'Configuração', icon: 'settings' },
@@ -466,7 +470,23 @@ export class DashboardComponent implements OnInit {
   constructor(private apiService: ApiService) {}
 
   ngOnInit(): void {
-    // Initialize dashboard
+    this.refreshStats();
+    // Refresh stats every 30 seconds
+    setInterval(() => this.refreshStats(), 30000);
+  }
+
+  private refreshStats(): void {
+    this.apiService.getMarketOrders().subscribe({
+      next: (orders) => {
+        this.totalOrders.set(orders.length);
+        this.completedOrders.set(orders.filter(o => o.status === 'COMPLETED' || o.status === 'SHIPPED').length);
+        this.pendingOrders.set(orders.filter(o => o.status === 'PENDING' || o.status === 'ALLOCATED').length);
+      },
+      error: (err) => console.error('Erro ao carregar estatísticas de pedidos:', err)
+    });
+
+    // Mock event count for now as there's no direct aggregate endpoint
+    this.eventCount.set(Math.floor(Math.random() * 100) + 200);
   }
 
   selectTab(tabId: string): void {
@@ -474,19 +494,19 @@ export class DashboardComponent implements OnInit {
   }
 
   getTotalOrders(): number {
-    return 42; // Mock data
+    return this.totalOrders();
   }
 
   getCompletedOrders(): number {
-    return 28;
+    return this.completedOrders();
   }
 
   getPendingOrders(): number {
-    return 14;
+    return this.pendingOrders();
   }
 
   getEventCount(): number {
-    return 256;
+    return this.eventCount();
   }
 
   getSystemUptime(): string {
@@ -498,7 +518,7 @@ export class DashboardComponent implements OnInit {
   }
 
   getQueueSize(): number {
-    return 5;
+    return this.pendingOrders();
   }
 
   getProcessingRate(): number {

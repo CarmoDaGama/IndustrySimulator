@@ -1,5 +1,7 @@
-import { Injectable } from '@angular/core';
+import { Injectable, OnDestroy } from '@angular/core';
 import { Subject, BehaviorSubject, Observable } from 'rxjs';
+import { Client, Message } from '@stomp/stompjs';
+import * as SockJS from 'sockjs-client';
 
 export interface OrderStatusEvent {
   orderId: string;
@@ -14,106 +16,98 @@ export interface OrderStatusEvent {
 @Injectable({
   providedIn: 'root'
 })
-export class WebSocketService {
-  private ws: WebSocket | null = null;
+export class WebSocketService implements OnDestroy {
+  private stompClient: Client | null = null;
   private orderStatusSubject = new Subject<OrderStatusEvent>();
   private connectionStatusSubject = new BehaviorSubject<boolean>(false);
 
   public orderStatus$ = this.orderStatusSubject.asObservable();
   public isConnected$ = this.connectionStatusSubject.asObservable();
 
+  // The Assembly Service is where the WebSocket endpoint is hosted
+  private readonly WS_URL = 'http://localhost:8084/ws/orders';
+
   constructor() {}
 
+  ngOnDestroy(): void {
+    this.disconnect();
+  }
+
   connect(): void {
-    if (this.ws || this.connectionStatusSubject.value) {
-      return; // Already connected
-    }
-
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const url = `${protocol}//${window.location.host}/ws/orders`;
-
-    this.ws = new WebSocket(url);
-
-    this.ws.onopen = () => {
-      console.log('WebSocket connected');
-      this.connectionStatusSubject.next(true);
-      this.subscribeToOrderUpdates();
-    };
-
-    this.ws.onmessage = (event) => {
-      try {
-        const message = JSON.parse(event.data);
-        
-        // Handle STOMP frames
-        if (message.command === 'MESSAGE') {
-          const body = JSON.parse(message.body);
-          this.orderStatusSubject.next(body);
-        } else if (message.type === 'OrderStatusEvent') {
-          // Direct JSON message
-          this.orderStatusSubject.next(message);
-        }
-      } catch (error) {
-        console.error('Failed to parse WebSocket message:', error);
-      }
-    };
-
-    this.ws.onerror = (event) => {
-      console.error('WebSocket error:', event);
-      this.connectionStatusSubject.next(false);
-    };
-
-    this.ws.onclose = () => {
-      console.log('WebSocket disconnected');
-      this.connectionStatusSubject.next(false);
-      this.ws = null;
-      // Auto-reconnect after 5 seconds
-      setTimeout(() => this.connect(), 5000);
-    };
-  }
-
-  private subscribeToOrderUpdates(): void {
-    if (!this.ws) return;
-
-    const subscribeMessage = {
-      id: 'sub-1',
-      type: 'SUBSCRIBE',
-      destination: '/topic/orders/all'
-    };
-
-    this.ws.send(JSON.stringify(subscribeMessage));
-  }
-
-  subscribeToOrder(orderId: string): void {
-    if (!this.ws) {
-      this.connect();
-      setTimeout(() => this.subscribeToOrder(orderId), 500);
+    if (this.stompClient && this.stompClient.active) {
       return;
     }
 
-    const subscribeMessage = {
-      id: `sub-order-${orderId}`,
-      type: 'SUBSCRIBE',
-      destination: `/topic/orders/${orderId}`
+    this.stompClient = new Client({
+      webSocketFactory: () => new SockJS(this.WS_URL),
+      debug: (msg: string) => console.log('STOMP: ' + msg),
+      reconnectDelay: 5000,
+      heartbeatIncoming: 4000,
+      heartbeatOutgoing: 4000,
+    });
+
+    this.stompClient.onConnect = (frame) => {
+      console.log('STOMP Connected: ' + frame);
+      this.connectionStatusSubject.next(true);
+      
+      // Subscribe to all orders by default
+      this.subscribeToOrderUpdates();
     };
 
-    this.ws.send(JSON.stringify(subscribeMessage));
+    this.stompClient.onStompError = (frame) => {
+      console.error('STOMP Error: ' + frame.headers['message']);
+      console.error('Additional details: ' + frame.body);
+      this.connectionStatusSubject.next(false);
+    };
+
+    this.stompClient.onWebSocketClose = () => {
+      console.log('STOMP Connection Closed');
+      this.connectionStatusSubject.next(false);
+    };
+
+    this.stompClient.activate();
   }
 
-  unsubscribeFromOrder(orderId: string): void {
-    if (!this.ws) return;
+  private subscribeToOrderUpdates(): void {
+    if (!this.stompClient || !this.stompClient.active) return;
 
-    const unsubscribeMessage = {
-      id: `unsub-order-${orderId}`,
-      type: 'UNSUBSCRIBE'
-    };
+    this.stompClient.subscribe('/topic/orders/all', (message: Message) => {
+      if (message.body) {
+        try {
+          const event: OrderStatusEvent = JSON.parse(message.body);
+          this.orderStatusSubject.next(event);
+        } catch (e) {
+          console.error('Error parsing order status message:', e);
+        }
+      }
+    });
+  }
 
-    this.ws.send(JSON.stringify(unsubscribeMessage));
+  subscribeToOrder(orderId: string): void {
+    if (!this.stompClient || !this.stompClient.active) {
+      this.connect();
+      // The onConnect handler will re-subscribe if needed, 
+      // but for specific orders we might need to wait
+      setTimeout(() => this.subscribeToOrder(orderId), 1000);
+      return;
+    }
+
+    this.stompClient.subscribe(`/topic/orders/${orderId}`, (message: Message) => {
+      if (message.body) {
+        try {
+          const event: OrderStatusEvent = JSON.parse(message.body);
+          this.orderStatusSubject.next(event);
+        } catch (e) {
+          console.error(`Error parsing order ${orderId} message:`, e);
+        }
+      }
+    });
   }
 
   disconnect(): void {
-    if (this.ws) {
-      this.ws.close();
-      this.ws = null;
+    if (this.stompClient) {
+      this.stompClient.deactivate();
+      this.stompClient = null;
       this.connectionStatusSubject.next(false);
     }
   }

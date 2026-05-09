@@ -219,9 +219,7 @@ mvn clean package -pl raw-material-service -am
 5. **Performance Optimization** - Caching, indexing, async processing
 
 ## Authors
-
-- Gama - Backend Architecture & Kafka Implementation
-- Teresa - Frontend & API Management
+- Teresa
 
 ## License
 

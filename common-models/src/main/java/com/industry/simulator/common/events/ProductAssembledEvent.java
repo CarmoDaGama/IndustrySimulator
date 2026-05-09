@@ -21,6 +21,8 @@ public class ProductAssembledEvent implements Serializable {
     private static final long serialVersionUID = 1L;
 
     private String eventId;
+    @Builder.Default
+    private String eventType = "PRODUCT_ASSEMBLED";
     private String productId;
     private String batchId;
     private Component finalProduct;

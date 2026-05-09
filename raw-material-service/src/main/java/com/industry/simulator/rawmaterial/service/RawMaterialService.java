@@ -5,17 +5,20 @@ import com.industry.simulator.common.model.Component;
 import com.industry.simulator.rawmaterial.entity.RawMaterial;
 import com.industry.simulator.rawmaterial.kafka.RawMaterialProducer;
 import com.industry.simulator.rawmaterial.repository.RawMaterialRepository;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 
 @Service
-@Slf4j
 public class RawMaterialService {
+
+    private static final Logger log = LoggerFactory.getLogger(RawMaterialService.class);
 
     @Autowired
     private RawMaterialRepository repository;
@@ -36,30 +39,56 @@ public class RawMaterialService {
         material.setUpdatedAt(LocalDateTime.now());
 
         RawMaterial saved = repository.save(material);
-        log.info("Created raw material: {} with batch: {}", materialName, batchId);
+        log.info("{} | raw-material-service | Registered extraction request for {}", batchId, materialName);
 
-        // Publish event to Kafka
-        Component component = new Component();
-        component.setId(saved.getId());
-        component.setName(materialName);
-        component.setType("RAW_MATERIAL");
-        component.setQuantity(quantity);
-        component.setUnit(unit);
-        component.setBatchId(batchId);
-        component.setSourceService("raw-material-service");
+        // Simulate extraction delay asynchronously
+        CompletableFuture.runAsync(() -> {
+            try {
+                long extractionDuration = 10000;
+                long transportDuration = 5000;
+                
+                log.info("{} | raw-material-service | Starting EXTRACTION ({}ms)", batchId, extractionDuration);
+                Thread.sleep(extractionDuration);
+                
+                log.info("{} | raw-material-service | Starting TRANSPORT ({}ms)", batchId, transportDuration);
+                Thread.sleep(transportDuration);
 
-        RawMaterialProducedEvent event = RawMaterialProducedEvent.builder()
-                .eventId(UUID.randomUUID().toString())
-                .batchId(batchId)
-                .material(component)
-                .quantity(quantity)
-                .unit(unit)
-                .timestamp(LocalDateTime.now())
-                .purpose("processing")
-                .sourceService("raw-material-service")
-                .build();
+                // Build v2 compliant component
+                Component component = Component.builder()
+                        .id(saved.getId())
+                        .name(materialName)
+                        .type("RAW_MATERIAL")
+                        .quantity(quantity)
+                        .unit(unit)
+                        .batchId(batchId)
+                        .createdAt(LocalDateTime.now())
+                        .updatedAt(LocalDateTime.now())
+                        .producer(Component.Producer.builder()
+                                .service("raw-material-service")
+                                .factory("mining-site-alpha")
+                                .build())
+                        .build();
 
-        producer.publishRawMaterialProduced(event);
+                RawMaterialProducedEvent event = RawMaterialProducedEvent.builder()
+                        .eventId(UUID.randomUUID().toString())
+                        .eventType("RAW_MATERIAL_EXTRACTED")
+                        .batchId(batchId)
+                        .material(component)
+                        .quantity(quantity)
+                        .unit(unit)
+                        .timestamp(LocalDateTime.now())
+                        .purpose("processing")
+                        .sourceService("raw-material-service")
+                        .build();
+
+                producer.publishRawMaterialProduced(event);
+                log.info("{} | raw-material-service | Extraction and Transport completed. Event published.", batchId);
+
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                log.error("{} | raw-material-service | Production pipeline interrupted", batchId, e);
+            }
+        });
 
         return saved;
     }

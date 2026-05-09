@@ -20,6 +20,8 @@ public class RawMaterialProducedEvent implements Serializable {
     private static final long serialVersionUID = 1L;
 
     private String eventId;
+    @Builder.Default
+    private String eventType = "RAW_MATERIAL_EXTRACTED";
     private String batchId;
     private Component material;
     private double quantity;

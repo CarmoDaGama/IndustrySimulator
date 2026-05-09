@@ -20,6 +20,8 @@ public class ProcessingCompletedEvent implements Serializable {
     private static final long serialVersionUID = 1L;
 
     private String eventId;
+    @Builder.Default
+    private String eventType = "MATERIAL_PROCESSED";
     private String batchId;
     private Component processedMaterial;
     private String processingType; // e.g., "melting", "cutting", "casting"

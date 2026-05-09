@@ -2,7 +2,7 @@ spring:
   application:
     name: raw-material-service
   datasource:
-    url: jdbc:postgresql://postgres-db:5432/raw_material_db
+    url: jdbc:postgresql://postgres-raw-material:5432/raw_material_db
     username: industry_user
     password: industry_password
     driver-class-name: org.postgresql.Driver

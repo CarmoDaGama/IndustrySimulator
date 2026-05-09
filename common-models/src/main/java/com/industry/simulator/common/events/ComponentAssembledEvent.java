@@ -21,6 +21,8 @@ public class ComponentAssembledEvent implements Serializable {
     private static final long serialVersionUID = 1L;
 
     private String eventId;
+    @Builder.Default
+    private String eventType = "COMPONENT_CREATED";
     private String batchId;
     private Component finalComponent;
     private List<String> usedMaterialIds;

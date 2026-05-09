@@ -1,15 +1,7 @@
 package com.industry.simulator.rawmaterial.dto;
 
 import jakarta.validation.constraints.*;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
 
-@Data
-@NoArgsConstructor
-@AllArgsConstructor
-@Builder
 public class CreateRawMaterialRequest {
     
     @NotBlank(message = "Material name cannot be blank")
@@ -27,4 +19,15 @@ public class CreateRawMaterialRequest {
     @NotBlank(message = "Unit cannot be blank")
     @Size(min = 1, max = 10, message = "Unit must be between 1 and 10 characters")
     private String unit;
+
+    public CreateRawMaterialRequest() {}
+
+    public String getMaterialName() { return materialName; }
+    public void setMaterialName(String materialName) { this.materialName = materialName; }
+    public String getMaterialType() { return materialType; }
+    public void setMaterialType(String materialType) { this.materialType = materialType; }
+    public double getQuantity() { return quantity; }
+    public void setQuantity(double quantity) { this.quantity = quantity; }
+    public String getUnit() { return unit; }
+    public void setUnit(String unit) { this.unit = unit; }
 }

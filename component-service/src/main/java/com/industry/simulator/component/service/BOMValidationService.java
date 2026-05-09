@@ -1,15 +1,16 @@
 package com.industry.simulator.component.service;
 
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.util.HashSet;
 import java.util.Set;
 
 @Service
-@Slf4j
 public class BOMValidationService {
 
+    private static final Logger log = LoggerFactory.getLogger(BOMValidationService.class);
     private static final Set<String> COMPATIBLE_MATERIALS = new HashSet<>();
 
     static {

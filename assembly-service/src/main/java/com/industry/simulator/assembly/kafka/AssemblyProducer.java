@@ -2,7 +2,8 @@ package com.industry.simulator.assembly.kafka;
 
 import com.industry.simulator.common.events.ProductAssembledEvent;
 import com.industry.simulator.common.events.InventoryUpdatedEvent;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
@@ -13,8 +14,9 @@ import java.util.UUID;
  * Kafka producer for assembly events with logging
  */
 @Service
-@Slf4j
 public class AssemblyProducer {
+
+    private static final Logger log = LoggerFactory.getLogger(AssemblyProducer.class);
 
     @Autowired
     private KafkaTemplate<String, ProductAssembledEvent> productTemplate;

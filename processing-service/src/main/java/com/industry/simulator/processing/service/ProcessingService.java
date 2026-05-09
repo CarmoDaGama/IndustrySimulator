@@ -3,7 +3,8 @@ package com.industry.simulator.processing.service;
 import com.industry.simulator.processing.dto.ProcessingResponse;
 import com.industry.simulator.processing.entity.ProcessedMaterial;
 import com.industry.simulator.processing.repository.ProcessedMaterialRepository;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -11,8 +12,9 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 @Service
-@Slf4j
 public class ProcessingService {
+
+    private static final Logger log = LoggerFactory.getLogger(ProcessingService.class);
 
     @Autowired
     private ProcessedMaterialRepository repository;

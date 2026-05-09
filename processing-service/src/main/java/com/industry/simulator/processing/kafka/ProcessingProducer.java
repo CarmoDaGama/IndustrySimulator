@@ -1,7 +1,8 @@
 package com.industry.simulator.processing.kafka;
 
 import com.industry.simulator.common.events.ProcessingCompletedEvent;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
@@ -12,8 +13,9 @@ import java.util.UUID;
  * Kafka producer for processing completed events with logging
  */
 @Component
-@Slf4j
 public class ProcessingProducer {
+
+    private static final Logger log = LoggerFactory.getLogger(ProcessingProducer.class);
 
     @Autowired
     private KafkaTemplate<String, ProcessingCompletedEvent> kafkaTemplate;

@@ -1,127 +1,259 @@
-**✅ Recomendação COMPLETA e REALISTA para o vosso grupo (2 pessoas – 11 dias úteis até 1 de Maio)**
+**Aqui está o conteúdo completo do Enunciado Projecto v2.pdf (14 páginas), transcrito integralmente sem qualquer resumo ou omissão.**
 
-A vossa stack está **excelente** para o projecto (Spring Boot + Kafka + Docker + Angular + PostgreSQL). É exactamente o que os professores esperam ver num projecto de Sistemas Distribuídos.
+---
 
-Como o projecto está a **0%** e o deadline é curto, vamos focar num **MVP robusto** que cumpre **todos os requisitos obrigatórios** da versão 2 do enunciado, sem feature creep.
+**Simulador da Industria 4.0**
 
-### 1. Estratégia Geral (o que vos salva)
+**República de Angola**  
+**Universidade Católica de Angola**  
+**Faculdade de Engenharia**
 
-| Prioridade | Objectivo | Tempo estimado |
-| --- | --- | --- |
-| MVP obrigatório | 4 microserviços + Kafka + Angular dashboard | 7 dias |
-| Polimento + testes | Logs, validações, formulários, Docker | 3 dias |
-| Apresentação (júnior) | Slides + demo ao vivo | 1 dia |
+**Curso:** Engenharia Informática  
+**Disciplina:** Sistemas Distribuídos e Paralelos II  
+**Docente:** Prof. Eng. Domingos Fernando  
 
-**Regra de ouro:**
+**Ano curricular:** 4º - 2026/2027
 
-- Cada microserviço tem a **sua própria base de dados PostgreSQL** (não partilham DB – cumpre a regra “sem acesso directo ao DB de outro serviço”).
-- Comunicação: **Kafka** (assíncrono) + **REST** (síncrono para gestão).
-- Pipeline: usa `CompletableFuture.delayedExecutor` ou `Thread.sleep` controlado (nunca produção instantânea).
+### 1. Enquadramento
 
-### 2. Arquitectura Recomendada (simples e limpa)
+O governo angolano no seu plano de desenvolvimento e diversificação económica, sendo que possuímos em nosso solo ou em países próximos, todos os recursos naturais, minerais e hídricos para a produção em massa de produtos hoje maioritariamente importados, almeja alcançar a auto suficiência industrial suprindo assim toda a cadeia vertical de valor, desde a exploração, processamento, refinamento e construção de derivados, bem como a distribuição e exportação.
 
-**Monorepo Maven multi-módulo** (recomendado para 2 pessoas):
+Com isso em mente, sabendo que os estudantes da Universidade Católica pela sua fama, detêm um vasto conhecimento sobre desenvolvimento de sistemas, lançou o desafio para os estudantes, no qual pretende então, previamente construir um sistema que simula o funcionamento da indústria real, a fim de refinar o planejamento, identificar pontos fracos e fortes, bem como encontrar possíveis pontos de falha ou gargalos a serem mitigados.
 
+### 2. Objectivo
+
+Desenvolver um sistema distribuído baseado em arquitetura de microserviços que simule o funcionamento de uma cadeia industrial e social, desde a extração de matéria-prima até a entrega de produtos finais ao mercado.
+
+O projeto deve demonstrar, de forma prática, conceitos fundamentais de:
+
+- Sistemas distribuídos
+- Compatibilidade entre peças
+- Tempo real de produção (latência)
+- Consumo de recursos
+- Processos industriais (pipelines)
+- Comunicação via eventos (Kafka)
+
+### 3. Descrição do Problema
+
+A sociedade moderna depende de cadeias industriais complexas. Neste projeto, cada grupo deverá implementar um conjunto de microserviços que representam partes dessa cadeia, incluindo:
+
+- Extração de matéria-prima
+- Processamento industrial
+- Produção de componentes
+- Montagem de produtos finais
+- Gestão de stock
+- Simulação de mercado (pedidos)
+
+Cada serviço deve funcionar de forma independente, mas cooperar com os demais através de comunicação distribuída.
+
+### 4. Conceito Central
+
+O sistema deve funcionar como uma fábrica distribuída, onde:
+
+- Cada microserviço representa uma indústria
+- Produção ocorre em etapas (pipeline)
+- Cada etapa leva tempo
+- Produção depende de:
+  - recursos disponíveis
+  - compatibilidade de componentes
+  - capacidade do sistema
+
+**Matéria-prima → Processamento → Componentes → Montagem → Inventário → Venda**
+
+### 5. Arquitetura Esperada
+
+O sistema deve seguir uma arquitetura baseada em microserviços, com as seguintes características:
+
+**Serviços sugeridos (mínimo obrigatório)**
+
+Cada grupo deverá implementar pelo menos 3 microserviços, escolhidos entre:
+
+1. Serviço de Matéria-Prima  
+   a. Simula extração (ferro, petróleo, madeira, etc.)
+
+2. Serviço de Processamento  
+   a. Refina matéria-prima em materiais utilizáveis
+
+3. Serviço de Componentes  
+   a. Produz peças industriais (ex: motor, chip, vidro)
+
+4. Serviço de Montagem  
+   a. Produz produtos finais (ex: carro, telefone)
+
+5. Serviço de Inventário  
+   a. Gerencia stock global
+
+6. Serviço de Mercado  
+   a. Simula pedidos de clientes
+
+### 7. Comunicação entre Serviços
+
+O sistema deve obrigatoriamente utilizar:
+
+**Comunicação síncrona**
+- REST APIs (HTTP) – Para a gestão, monitorar e configurações
+
+**Comunicação assíncrona**
+- Sistema de mensageria **Kafka**
+
+**Eventos**
+- RAW_MATERIAL_EXTRACTED
+- MATERIAL_PROCESSED
+- COMPONENT_CREATED
+- PRODUCT_ASSEMBLED
+- ORDER_CREATED
+
+### 8. BOM — Componentes mínimos
+
+- **Carro**
+  - Motor → 1
+  - Pneus → 4
+  - Chassis → 1
+  - Transmissão → 1
+  - Sistema elétrico → 1
+
+- **Motor**
+  - Pistões → 4–8
+  - Cambota → 1
+  - Bloco → 1
+  - Cabeçote → 1
+
+### 9. Regras obrigatórias
+
+- Não deve gerar Produção instantânea
+- Não deve gerar Ignorar compatibilidade
+- Não deve Ignorar indisponibilidade de recursos
+- Não deve ter Acesso direto ao DB de outro serviço
+- Uso de eventos Kafka é Obrigatório
+- Pipeline com tempo
+- Validação de BOM
+- Logs claros
+- Qualquer vestígio de cópia ou plágio resultará em anulação imediata
+- Todos os projectos devem ter um ou vários formulários para configuração das pipelines de produção e operações.
+
+### 10. Modelo de Dados (PADRÃO)
+
+Todos os serviços devem usar um modelo consistente.
+
+**Regras obrigatórias**
+- Todo nó da árvore deve conter:
+  - id
+  - name
+  - components
+  - producer.service
+  - producer.factory
+- Nenhum componente pode existir sem produtor
+- Cada microserviço só pode produzir os seus próprios tipos
+
+**Evento base (Kafka)**
+```json
+{
+  "eventId": "uuid",
+  "eventType": "COMPONENT_CREATED",
+  "timestamp": 1710000000,
+  "payload": { ... }
+}
 ```
-industria-4.0-simulator/
-├── pom.xml (parent)
-├── discovery-service/     (Eureka – opcional mas ajuda)
-├── api-gateway/           (Spring Cloud Gateway – opcional)
-├── raw-material-service/
-├── processing-service/
-├── component-service/
-├── assembly-service/
-├── inventory-service/
-├── market-service/
-├── frontend-angular/
-├── docker-compose.yml
-└── README.md
+
+**Exemplo de Um Componente**
+```json
+{
+    "id": "eng-001",
+    "type": "COMPONENT",
+    "name": "Motor V8",
+    "specs": {
+        "engineType": "V8",
+        "powerHP": 450
+    },
+    "compatibility": {
+        "vehicleType": ["SUV"],
+        "mountType": "LARGE"
+    },
+    "producer": {
+        "service": "engine-service",
+        "factory": "engine-plant"
+    },
+    "components": [...]
+}
 ```
 
-**Serviços mínimos obrigatórios (façam exactamente estes 4):**
+(Os exemplos completos de Carro e Telefone vendidos estão nas páginas 5 a 9 do PDF, com a árvore completa de componentes recursiva.)
 
-1. **raw-material-service** (Matéria-prima)
-2. **processing-service** (Processamento)
-3. **component-service** (Componentes)
-4. **assembly-service** (Montagem + Inventário + Mercado)
+### 11. Pipeline de Produção (TEMPO OBRIGATÓRIO)
 
-(Se der tempo, separa inventory e market – mas os 4 acima já cumprem o mínimo de 3 + stock + pedidos)
+Toda produção deve seguir etapas com tempo.
 
-### 3. Divisão de Trabalho (Gama × Teresa)
+**Exemplos de configurações para pipelines:**
+```json
+// Mineração de Ferro
+[
+  { "name": "EXTRACTION", "durationMs": 10000 },
+  { "name": "TRANSPORT", "durationMs": 5000 }
+]
 
-**Gama:**
+// Produção de Aço
+[
+  { "name": "SMELTING", "durationMs": 8000 },
+  { "name": "REFINING", "durationMs": 6000 }
+]
 
-- Configuração do monorepo Maven + Docker Compose + Kafka + PostgreSQL
-- Implementação completa do **Kafka** (tópicos, produtores, consumidores, eventos exactos do enunciado)
-- Pipeline com tempo real
-- Validação de BOM + compatibilidade
-- Backend dos 4 serviços (80% do código)
-- docker-compose.yml completo
+// Motor V8
+[
+  { "name": "PART_PREP", "durationMs": 6000 },
+  { "name": "ASSEMBLY", "durationMs": 10000 },
+  { "name": "TEST", "durationMs": 4000 }
+]
+```
 
-**Teresa:**
+**Etapas padrão para cada categoria:**
 
-- Angular 17 frontend (dashboard + formulários de configuração de pipelines)
-- Todos os endpoints REST de gestão/monitorização (com Postman collections)
-- Testes manuais + logs claros
+1. **Matéria-prima**
+   1. EXTRACTION
+   2. INITIAL_PROCESSING
+   3. PACKAGING_FOR_TRANSPORT
 
-**Trabalho em conjunto (daily 30 min):**
+2. **Processamento**
+   1. REFINING
+   2. PURIFICATION
+   3. MATERIAL_STANDARDIZATION
 
-- Revisão de código + merge
-- Testes integrados (Kafka + pipeline)
+3. **Componentes**
+   1. PART_PREPARATION
+   2. ASSEMBLY
+   3. QUALITY_CHECK
 
-### 4. Plano Dia-a-Dia (20 de Abril → 1 de Maio)
+4. **Produto Final**
+   1. FINAL_ASSEMBLY
+   2. INTEGRATION
+   3. FINAL_TEST
 
-**Semana 1 (20–26 Abril) – MVP Backend**
+### 12. Exemplo de produtos a serem fabricados
 
-- Dia 20–21: Monorepo + Docker Compose + Kafka + 4 DBs PostgreSQL
-- Dia 22–23: raw-material-service + processing-service (pipelines + eventos)
-- Dia 24–25: component-service + assembly-service + BOM validation
-- Dia 26: Inventory + Market (pedidos + stock)
+computador, carros, telefone, tablet, tv plasma, sound bar.
 
-**Semana 2 (27 Abril – 1 Maio) – Frontend + Polimento**
+**Computador**, **Carro**, **Telefone**, **TV** e **Sound Bar** — com as respectivas árvores BOM detalhadas (ver páginas 11-13 do PDF).
 
-- Dia 27–28: Angular 17 (formulários de configuração de pipelines + dashboard em tempo real)
-- Dia 29: Testes completos + logs + validações
-- Dia 30: Docker tudo a funcionar com 1 comando
-- Dia 1 Maio: Slides + ensaio da apresentação (Teresa
-- apresenta)
+**Fluxo Padrão:**  
+**RAW → PROCESSING → COMPONENT → ASSEMBLY → TEST → DONE**
 
-### 5. Decisões Técnicas Importantes (para não perder tempo)
+**Cada nó deve incluir:**
+```json
+"purpose": {
+  "targetProduct": "CAR | PHONE | TV | ...",
+  "targetComponent": "ENGINE | SCREEN | CHIP | ...",
+  "description": "Texto explicando o uso"
+}
+```
 
-- **Kafka**: Use `spring-kafka` (já vem no Spring Boot 3). Crie exactamente os 5 tópicos do enunciado.
-- **Pipeline tempo**: Crie uma classe `PipelineStep` com `durationMs` e use `CompletableFuture.delayedExecutor`.
-- **Base de dados**: Cada serviço tem o seu `application.yml` com datasource próprio.
-- **Angular**: Use standalone components + signals (Angular 17). Faça um dashboard bonito com:
-    - Configuração de pipelines (formulário JSON)
-    - Botão “Iniciar Produção de Carro”
-    - Monitorização em tempo real (via WebSocket ou polling simples)
-- **Eventos Kafka**: Payload deve seguir exactamente o modelo do enunciado (incluindo novo campo `purpose` da v2).
-
-### 6. Dicas para a Apresentação (Teresa)
-
-O júri vai gostar muito se o Teresa conseguir explicar:
-
-- Porque usaram Kafka (assíncrono) + REST (síncrono)
-- Como a pipeline simula latência real
-- Como validam BOM e compatibilidade
-- Como os serviços são independentes (sem acoplamento directo)
-
-Dá para o Teresa fazer uma demo ao vivo de:
-
-1. Configurar pipeline no Angular
-2. Gerar um pedido de carro
-3. Ver os eventos no Kafka + stock a actualizar
-
-Quer que eu vos entregue **já hoje** algum dos seguintes pacotes prontos?
-
-1. **docker-compose.yml** completo (Kafka + 5 PostgreSQL + serviços)
-2. **Estrutura do monorepo Maven** + pom parent
-3. **Template de um serviço** (ex: raw-material-service) com Kafka + pipeline
-4. **Modelo de classes Java** (Component, BOM, PipelineStep, eventos)
-5. **Angular 17 dashboard** inicial pronto a ligar
-
-Diz-me qual queres primeiro e eu gero já (código completo, pronto a copiar).
-
-Vocês conseguem entregar um projecto **muito bom** até 1 de Maio se seguirem este plano.
-
-Bora? Qual o primeiro ficheiro que queres que eu prepare agora?
+**Exemplo (matéria-prima)**
+```json
+{
+  "name": "Areia",
+  "type": "RAW_MATERIAL",
+  "purpose": {
+    "targetProduct": "SMARTPHONE",
+    "targetComponent": "SCREEN",
+    "description": "Produção de vidro para ecrã"
+  }
+}
+```

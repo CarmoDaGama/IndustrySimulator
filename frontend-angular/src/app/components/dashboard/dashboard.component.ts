@@ -1,478 +1,204 @@
-import { Component, OnInit, signal } from '@angular/core';
+import { Component, OnInit, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { NgIf, NgFor, DatePipe } from '@angular/common';
 import { PipelineConfigComponent } from '../pipeline-config/pipeline-config.component';
 import { OrderFormComponent } from '../order-form/order-form.component';
 import { InventoryMonitorComponent } from '../inventory-monitor/inventory-monitor.component';
 import { EventsMonitorComponent } from '../events-monitor/events-monitor.component';
 import { ApiService } from '../../services/api.service';
+import { EventService } from '../../services/event.service';
+import { WebSocketService } from '../../services/websocket.service';
 
 /**
- * DashboardComponent - Main dashboard component
- * Integrates all monitoring and configuration components
- * Provides tabbed interface for different sections
+ * DashboardComponent - Central Hub
+ * Connects real-time events to statistics and manages global state
  */
 @Component({
   selector: 'app-dashboard',
   standalone: true,
   imports: [
     CommonModule,
+    NgIf, NgFor, DatePipe,
     PipelineConfigComponent,
     OrderFormComponent,
     InventoryMonitorComponent,
     EventsMonitorComponent,
   ],
   template: `
-    <div class="dashboard">
-      <!-- Tab Navigation -->
-      <div class="tab-navigation">
-        <button
-          *ngFor="let tab of tabs"
+    <div class="dashboard-wrapper">
+      <!-- Top Stats Bar -->
+      <div class="stats-bar animate-fade-in">
+        <div class="stat-card glass">
+          <div class="stat-icon"><i class="material-icons">receipt_long</i></div>
+          <div class="stat-content">
+            <span class="stat-label">Total de Pedidos</span>
+            <span class="stat-value">{{ totalOrders() }}</span>
+          </div>
+        </div>
+        
+        <div class="stat-card glass highlight-success">
+          <div class="stat-icon"><i class="material-icons">check_circle</i></div>
+          <div class="stat-content">
+            <span class="stat-label">Concluídos</span>
+            <span class="stat-value">{{ completedOrders() }}</span>
+          </div>
+        </div>
+
+        <div class="stat-card glass highlight-warning">
+          <div class="stat-icon"><i class="material-icons">pending_actions</i></div>
+          <div class="stat-content">
+            <span class="stat-label">Em Fila</span>
+            <span class="stat-value">{{ pendingOrders() }}</span>
+          </div>
+        </div>
+
+        <div class="stat-card glass highlight-primary">
+          <div class="stat-icon" [class.pulse]="isWsConnected()">
+            <i class="material-icons">{{ isWsConnected() ? 'bolt' : 'link_off' }}</i>
+          </div>
+          <div class="stat-content">
+            <span class="stat-label">Kafka Online</span>
+            <span class="stat-value">{{ eventCount() }}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Main Navigation -->
+      <nav class="dashboard-nav glass">
+        <button 
+          *ngFor="let tab of tabs" 
           (click)="selectTab(tab.id)"
-          class="tab-button"
+          class="nav-item"
           [class.active]="activeTab() === tab.id"
         >
           <i class="material-icons">{{ tab.icon }}</i>
-          {{ tab.label }}
+          <span>{{ tab.label }}</span>
         </button>
-      </div>
+      </nav>
 
-      <!-- Tab Content -->
-      <div class="tab-content">
-        <!-- Configuration Tab -->
-        <div *ngIf="activeTab() === 'configuration'" class="tab-pane active">
-          <div class="tab-grid">
-            <div class="tab-section">
-              <app-pipeline-config></app-pipeline-config>
-            </div>
-            <div class="tab-section">
-              <app-order-form></app-order-form>
-            </div>
+      <!-- Content Area -->
+      <div class="dashboard-content">
+        <!-- Configuration -->
+        <div *ngIf="activeTab() === 'configuration'" class="pane animate-slide-up">
+          <div class="grid-2">
+            <app-pipeline-config></app-pipeline-config>
+            <app-order-form></app-order-form>
           </div>
         </div>
 
-        <!-- Monitoring Tab -->
-        <div *ngIf="activeTab() === 'monitoring'" class="tab-pane active">
-          <div class="tab-grid">
-            <div class="tab-section full-width">
+        <!-- Monitoring -->
+        <div *ngIf="activeTab() === 'monitoring'" class="pane animate-slide-up">
+          <div class="grid-layout">
+            <div class="col-main">
               <app-events-monitor></app-events-monitor>
             </div>
-            <div class="tab-section">
+            <div class="col-side">
               <app-inventory-monitor></app-inventory-monitor>
-            </div>
-          </div>
-        </div>
-
-        <!-- Statistics Tab -->
-        <div *ngIf="activeTab() === 'statistics'" class="tab-pane active">
-          <div class="statistics-container">
-            <div class="stats-grid">
-              <div class="stat-card">
-                <div class="stat-icon"><i class="material-icons">inventory_2</i></div>
-                <div class="stat-info">
-                  <div class="stat-value">{{ getTotalOrders() }}</div>
-                    <div class="stat-label">Total de pedidos</div>
+              
+              <!-- System Health Card -->
+              <div class="health-card glass mt-3">
+                <h3><i class="material-icons">health_and_safety</i> Integridade</h3>
+                <div class="health-item">
+                  <span class="label">WebSocket Status:</span>
+                  <span class="value" [class.text-success]="isWsConnected()">
+                    {{ isWsConnected() ? 'Conectado' : 'Reconectando...' }}
+                  </span>
                 </div>
-              </div>
-
-              <div class="stat-card">
-                <div class="stat-icon"><i class="material-icons">check_circle</i></div>
-                <div class="stat-info">
-                  <div class="stat-value">{{ getCompletedOrders() }}</div>
-                  <div class="stat-label">Pedidos concluídos</div>
-                </div>
-              </div>
-
-              <div class="stat-card">
-                <div class="stat-icon"><i class="material-icons">hourglass_bottom</i></div>
-                <div class="stat-info">
-                  <div class="stat-value">{{ getPendingOrders() }}</div>
-                  <div class="stat-label">Pedidos pendentes</div>
-                </div>
-              </div>
-
-              <div class="stat-card">
-                <div class="stat-icon"><i class="material-icons">rss_feed</i></div>
-                <div class="stat-info">
-                  <div class="stat-value">{{ getEventCount() }}</div>
-                  <div class="stat-label">Eventos processados</div>
-                </div>
-              </div>
-            </div>
-
-            <div class="performance-metrics">
-              <h3>Métricas de desempenho</h3>
-              <div class="metrics-grid">
-                <div class="metric-item">
-                  <span class="metric-label">Duração média do pipeline:</span>
-                  <span class="metric-value">~45s</span>
-                </div>
-                <div class="metric-item">
-                  <span class="metric-label">Tempo de atividade do sistema:</span>
-                  <span class="metric-value">{{ getSystemUptime() }}</span>
-                </div>
-                <div class="metric-item">
-                  <span class="metric-label">Tamanho da fila:</span>
-                  <span class="metric-value">{{ getQueueSize() }}</span>
-                </div>
-                <div class="metric-item">
-                  <span class="metric-label">Taxa de processamento:</span>
-                  <span class="metric-value">{{ getProcessingRate() }} itens/min</span>
+                <div class="health-item">
+                  <span class="label">Uptime do Sistema:</span>
+                  <span class="value">{{ systemUptime() }}</span>
                 </div>
               </div>
             </div>
           </div>
         </div>
 
-        <!-- Help Tab -->
-        <div *ngIf="activeTab() === 'help'" class="tab-pane active">
-          <div class="help-container">
-            <div class="help-section">
-              <h3>Guia rápido</h3>
-
-              <div class="help-card">
-                <h4>1. Configurar pipeline</h4>
-                <p>Acesse a aba <strong>Configuração</strong> e defina a sua linha de produção:</p>
-                <ul>
-                  <li>Defina o nome e a descrição do pipeline</li>
-                  <li>Adicione as etapas de produção com duração em milissegundos</li>
-                  <li>Salve a configuração</li>
-                </ul>
-              </div>
-
-              <div class="help-card">
-                <h4>2. Criar pedido de mercado</h4>
-                <p>Crie um novo pedido de produção:</p>
-                <ul>
-                  <li>Informe o nome do cliente e o tipo de produto</li>
-                  <li>Especifique a quantidade e a versão da BOM</li>
-                  <li>Defina a data de entrega e a prioridade</li>
-                  <li>Envie o pedido</li>
-                </ul>
-              </div>
-
-              <div class="help-card">
-                <h4>3. Monitorar produção</h4>
-                <p>Acompanhe a produção em tempo real:</p>
-                <ul>
-                  <li>Visualize os eventos dos tópicos Kafka</li>
-                  <li>Monitore os níveis de estoque</li>
-                  <li>Confira o status e o progresso dos pedidos</li>
-                </ul>
-              </div>
-
-              <div class="help-card">
-                <h4><i class="material-icons">account_tree</i> Arquitetura do sistema</h4>
-                <p>O Simulador Industrial usa:</p>
-                <ul>
-                  <li><strong>Spring Boot</strong> - Framework de microsserviços</li>
-                  <li><strong>Kafka</strong> - Streaming assíncrono de eventos</li>
-                  <li><strong>PostgreSQL</strong> - Banco de dados de cada serviço</li>
-                  <li><strong>Angular 17</strong> - Painel frontend</li>
-                </ul>
-              </div>
-
-              <div class="help-card">
-                <h4><i class="material-icons">link</i> Microsserviços</h4>
-                <ul>
-                  <li><code>http://localhost:8081</code> - Serviço de matéria-prima</li>
-                  <li><code>http://localhost:8082</code> - Serviço de processamento</li>
-                  <li><code>http://localhost:8083</code> - Serviço de componentes</li>
-                  <li><code>http://localhost:8084</code> - Serviço de montagem</li>
-                </ul>
-              </div>
-
-              <div class="help-card">
-                <h4><i class="material-icons">rss_feed</i> Tópicos Kafka</h4>
-                <ul>
-                  <li><code>raw-material-produced</code> - Eventos de matéria-prima</li>
-                  <li><code>processing-completed</code> - Resultados do processamento</li>
-                  <li><code>component-assembled</code> - Eventos de montagem de componentes</li>
-                  <li><code>product-assembled</code> - Eventos do produto final</li>
-                  <li><code>inventory-updated</code> - Atualizações de estoque</li>
-                </ul>
-              </div>
-            </div>
-          </div>
+        <!-- Analytics -->
+        <div *ngIf="activeTab() === 'analytics'" class="pane animate-slide-up">
+           <div class="placeholder-card glass">
+              <i class="material-icons">analytics</i>
+              <h3>Módulo de Analytics em v2.1</h3>
+              <p>O monitoramento avançado de latência e gargalos está em desenvolvimento.</p>
+           </div>
         </div>
       </div>
     </div>
   `,
-  styles: [
-    `
-      .dashboard {
-        display: flex;
-        flex-direction: column;
-        gap: 1.5rem;
-      }
+  styles: [`
+    .dashboard-wrapper { display: flex; flex-direction: column; gap: 2rem; }
+    .stats-bar { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1.5rem; }
+    .stat-card { padding: 1.5rem; border-radius: 1rem; display: flex; align-items: center; gap: 1.5rem; transition: var(--transition); }
+    .stat-icon { width: 56px; height: 56px; border-radius: 12px; display: flex; align-items: center; justify-content: center; background: rgba(255, 255, 255, 0.05); color: var(--text-muted); }
+    .stat-icon i { font-size: 2rem; }
+    .stat-icon.pulse { animation: pulse-icon 2s infinite; }
+    @keyframes pulse-icon { 0% { transform: scale(1); } 50% { transform: scale(1.1); filter: brightness(1.3); } 100% { transform: scale(1); } }
+    
+    .stat-content { display: flex; flex-direction: column; }
+    .stat-label { font-size: 0.8rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
+    .stat-value { font-size: 2rem; font-weight: 800; color: #fff; line-height: 1.2; }
+    .highlight-success .stat-icon { color: var(--success); background: rgba(16, 185, 129, 0.1); }
+    .highlight-warning .stat-icon { color: var(--warning); background: rgba(245, 158, 11, 0.1); }
+    .highlight-primary .stat-icon { color: var(--primary-light); background: rgba(99, 102, 241, 0.1); }
 
-      .tab-navigation {
-        display: flex;
-        gap: 0.5rem;
-        background: white;
-        border-radius: 8px;
-        padding: 0.5rem;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-        flex-wrap: wrap;
-      }
+    .dashboard-nav { display: flex; padding: 0.5rem; border-radius: 1rem; gap: 0.5rem; width: fit-content; margin: 0 auto; }
+    .nav-item { padding: 0.75rem 1.5rem; border-radius: 0.75rem; border: none; background: transparent; color: var(--text-muted); cursor: pointer; display: flex; align-items: center; gap: 0.75rem; font-weight: 600; transition: var(--transition); }
+    .nav-item:hover { background: rgba(255, 255, 255, 0.05); color: #fff; }
+    .nav-item.active { background: var(--primary); color: #fff; box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3); }
 
-      .tab-button {
-        padding: 0.75rem 1.5rem;
-        border: 2px solid transparent;
-        border-radius: 4px;
-        background: #f0f0f0;
-        color: #666;
-        cursor: pointer;
-        font-weight: 600;
-        transition: all 0.3s;
-        font-size: 0.95rem;
-      }
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; }
+    .grid-layout { display: grid; grid-template-columns: 1fr 380px; gap: 2rem; }
+    .health-card { padding: 1.5rem; border-radius: 1rem; }
+    .health-card h3 { font-size: 1rem; margin-bottom: 1.25rem; display: flex; align-items: center; gap: 0.5rem; color: var(--primary-light); }
+    .health-item { display: flex; justify-content: space-between; margin-bottom: 0.75rem; font-size: 0.9rem; }
+    .health-item .label { color: var(--text-muted); }
+    .health-item .value { font-weight: 700; color: #fff; }
+    .text-success { color: var(--success) !important; }
 
-      .tab-button:hover {
-        background: #e0e0e0;
-        transform: translateY(-2px);
-      }
+    .placeholder-card { height: 400px; display: flex; flex-direction: column; align-items: center; justify-content: center; border-radius: 2rem; text-align: center; padding: 3rem; }
+    .placeholder-card i { font-size: 5rem; color: var(--text-dim); margin-bottom: 2rem; }
 
-      .tab-button.active {
-        background: var(--primary-color);
-        color: white;
-        border-color: var(--primary-dark);
-      }
-
-      .tab-content {
-        min-height: 500px;
-      }
-
-      .tab-pane {
-        animation: fadeIn 0.3s ease-in;
-      }
-
-      @keyframes fadeIn {
-        from {
-          opacity: 0;
-          transform: translateY(10px);
-        }
-        to {
-          opacity: 1;
-          transform: translateY(0);
-        }
-      }
-
-      .tab-grid {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 1.5rem;
-      }
-
-      .tab-section {
-        animation: slideIn 0.3s ease-in;
-      }
-
-      .tab-section.full-width {
-        grid-column: 1 / -1;
-      }
-
-      @keyframes slideIn {
-        from {
-          opacity: 0;
-          transform: translateX(-20px);
-        }
-        to {
-          opacity: 1;
-          transform: translateX(0);
-        }
-      }
-
-      .statistics-container {
-        display: flex;
-        flex-direction: column;
-        gap: 2rem;
-      }
-
-      .stats-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-        gap: 1.5rem;
-      }
-
-      .stat-card {
-        background: white;
-        padding: 1.5rem;
-        border-radius: 8px;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-        display: flex;
-        align-items: center;
-        gap: 1.5rem;
-        transition: all 0.3s;
-      }
-
-      .stat-card:hover {
-        transform: translateY(-4px);
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-      }
-
-      .stat-icon {
-        font-size: 2.5rem;
-      }
-
-      .stat-info {
-        flex: 1;
-      }
-
-      .stat-value {
-        font-size: 1.8rem;
-        font-weight: 700;
-        color: var(--primary-color);
-      }
-
-      .stat-label {
-        font-size: 0.9rem;
-        color: #666;
-        margin-top: 0.25rem;
-      }
-
-      .performance-metrics {
-        background: white;
-        padding: 2rem;
-        border-radius: 8px;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-      }
-
-      .performance-metrics h3 {
-        margin: 0 0 1.5rem 0;
-        color: #333;
-        font-size: 1.2rem;
-      }
-
-      .metrics-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-        gap: 1rem;
-      }
-
-      .metric-item {
-        display: flex;
-        justify-content: space-between;
-        padding: 1rem;
-        background: #eff6ff;
-        border-radius: 4px;
-        border-left: 4px solid var(--primary-color);
-      }
-
-      .metric-label {
-        font-weight: 600;
-        color: #555;
-      }
-
-      .metric-value {
-        color: var(--primary-color);
-        font-weight: 700;
-      }
-
-      .help-container {
-        background: white;
-        border-radius: 8px;
-        padding: 2rem;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-      }
-
-      .help-section {
-        max-width: 1000px;
-      }
-
-      .help-section h3 {
-        margin: 0 0 1.5rem 0;
-        color: #333;
-        font-size: 1.3rem;
-      }
-
-      .help-card {
-        background: #eff6ff;
-        padding: 1.5rem;
-        border-radius: 6px;
-        margin-bottom: 1rem;
-        border-left: 4px solid var(--primary-color);
-      }
-
-      .help-card h4 {
-        margin: 0 0 0.75rem 0;
-        color: #333;
-      }
-
-      .help-card p {
-        margin: 0 0 0.75rem 0;
-        color: #666;
-        line-height: 1.5;
-      }
-
-      .help-card ul {
-        margin: 0;
-        padding-left: 1.5rem;
-        color: #666;
-      }
-
-      .help-card li {
-        margin-bottom: 0.5rem;
-        line-height: 1.5;
-      }
-
-      .help-card code {
-        background: white;
-        padding: 0.2rem 0.5rem;
-        border-radius: 3px;
-        font-family: monospace;
-        color: var(--primary-dark);
-      }
-
-      @media (max-width: 1024px) {
-        .tab-grid {
-          grid-template-columns: 1fr;
-        }
-
-        .tab-section.full-width {
-          grid-column: 1;
-        }
-      }
-
-      @media (max-width: 768px) {
-        .tab-navigation {
-          flex-direction: column;
-        }
-
-        .tab-button {
-          width: 100%;
-          text-align: center;
-        }
-
-        .stats-grid,
-        .metrics-grid {
-          grid-template-columns: 1fr;
-        }
-      }
-    `,
-  ],
+    @media (max-width: 1200px) { .grid-2, .grid-layout { grid-template-columns: 1fr; } .col-side { order: -1; } }
+  `]
 })
 export class DashboardComponent implements OnInit {
-  activeTab = signal<string>('configuration');
-  totalOrders = signal<number>(0);
-  completedOrders = signal<number>(0);
-  pendingOrders = signal<number>(0);
-  eventCount = signal<number>(0);
-
+  activeTab = signal('configuration');
+  
+  totalOrders = signal(0);
+  completedOrders = signal(0);
+  pendingOrders = signal(0);
+  eventCount = signal(0);
+  isWsConnected = signal(false);
+  
   tabs = [
-    { id: 'configuration', label: 'Configuração', icon: 'settings' },
-    { id: 'monitoring', label: 'Monitoramento', icon: 'rss_feed' },
-    { id: 'statistics', label: 'Estatísticas', icon: 'bar_chart' },
-    { id: 'help', label: 'Ajuda', icon: 'help_outline' },
+    { id: 'configuration', label: 'Operações', icon: 'precision_manufacturing' },
+    { id: 'monitoring', label: 'Live Monitor', icon: 'sensors' },
+    { id: 'analytics', label: 'Estatísticas', icon: 'insights' },
   ];
 
   private startTime = new Date();
 
-  constructor(private apiService: ApiService) {}
+  constructor(
+    private apiService: ApiService,
+    private eventService: EventService,
+    private wsService: WebSocketService
+  ) {}
 
   ngOnInit(): void {
+    // Explicitly connect to WebSockets
+    this.wsService.connect();
+    
     this.refreshStats();
-    // Refresh stats every 30 seconds
-    setInterval(() => this.refreshStats(), 30000);
+    setInterval(() => this.refreshStats(), 5000);
+    
+    // Track Kafka events
+    this.eventService.kafkaEvents.subscribe(events => {
+      this.eventCount.set(events.length);
+    });
+
+    // Track Connection status
+    this.wsService.isConnected$.subscribe(status => {
+      this.isWsConnected.set(status);
+    });
   }
 
   private refreshStats(): void {
@@ -481,47 +207,18 @@ export class DashboardComponent implements OnInit {
         this.totalOrders.set(orders.length);
         this.completedOrders.set(orders.filter(o => o.status === 'COMPLETED' || o.status === 'SHIPPED').length);
         this.pendingOrders.set(orders.filter(o => o.status === 'PENDING' || o.status === 'ALLOCATED').length);
-      },
-      error: (err) => console.error('Erro ao carregar estatísticas de pedidos:', err)
+      }
     });
-
-    // Mock event count for now as there's no direct aggregate endpoint
-    this.eventCount.set(Math.floor(Math.random() * 100) + 200);
   }
 
   selectTab(tabId: string): void {
     this.activeTab.set(tabId);
   }
 
-  getTotalOrders(): number {
-    return this.totalOrders();
-  }
-
-  getCompletedOrders(): number {
-    return this.completedOrders();
-  }
-
-  getPendingOrders(): number {
-    return this.pendingOrders();
-  }
-
-  getEventCount(): number {
-    return this.eventCount();
-  }
-
-  getSystemUptime(): string {
-    const now = new Date();
-    const diff = Math.floor((now.getTime() - this.startTime.getTime()) / 1000);
-    const hours = Math.floor(diff / 3600);
-    const minutes = Math.floor((diff % 3600) / 60);
-    return `${hours}h ${minutes}m`;
-  }
-
-  getQueueSize(): number {
-    return this.pendingOrders();
-  }
-
-  getProcessingRate(): number {
-    return 12;
+  systemUptime(): string {
+    const diff = Math.floor((new Date().getTime() - this.startTime.getTime()) / 1000);
+    const m = Math.floor(diff / 60);
+    const s = diff % 60;
+    return `${m}m ${s}s`;
   }
 }

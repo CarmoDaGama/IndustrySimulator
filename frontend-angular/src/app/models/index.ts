@@ -18,6 +18,7 @@ export interface PipelineConfig {
 
 export interface RawMaterial {
   id: number;
+  materialName: string;
   materialType: string;
   batchId: string;
   quantity: number;
@@ -95,6 +96,7 @@ export interface AssembledProduct {
 }
 
 export interface KafkaEvent {
+  eventId: string;
   eventType: string;
   timestamp: Date;
   batchId: string;

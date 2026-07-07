@@ -32,7 +32,10 @@ public class Component implements Serializable {
 
     // v2 mandatory fields
     private Producer producer;
-    
+
+    // Contrato de dados obrigatório (Secção 7 do enunciado)
+    private Purpose purpose;
+
     @Builder.Default
     private List<Component> components = new ArrayList<>();
 
@@ -43,5 +46,15 @@ public class Component implements Serializable {
     public static class Producer implements Serializable {
         private String service;
         private String factory;
+    }
+
+    @Data
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Builder
+    public static class Purpose implements Serializable {
+        private String targetProduct;
+        private String targetComponent;
+        private String description;
     }
 }

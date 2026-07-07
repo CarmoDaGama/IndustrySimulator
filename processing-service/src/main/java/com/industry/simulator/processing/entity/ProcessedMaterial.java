@@ -17,6 +17,7 @@ public class ProcessedMaterial {
     private Long id;
 
     private String batchId;
+    private String sourceBatchIds; // batchIds das unidades consumidas (regra 2:1)
     private String materialName;
     private String materialType;
     private double quantity;
@@ -33,6 +34,8 @@ public class ProcessedMaterial {
     public void setId(Long id) { this.id = id; }
     public String getBatchId() { return batchId; }
     public void setBatchId(String batchId) { this.batchId = batchId; }
+    public String getSourceBatchIds() { return sourceBatchIds; }
+    public void setSourceBatchIds(String sourceBatchIds) { this.sourceBatchIds = sourceBatchIds; }
     public String getMaterialName() { return materialName; }
     public void setMaterialName(String materialName) { this.materialName = materialName; }
     public String getMaterialType() { return materialType; }

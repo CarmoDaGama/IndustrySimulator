@@ -59,7 +59,8 @@ public class MarketOrderService {
             order.setFulfilledAt(LocalDateTime.now());
             log.info("Order allocated: {}", order.getOrderId());
         } else {
-            // For now, let's allow it to stay PENDING even if inventory is low (simulation)
+            // Fica PENDENTE até a Camada 5 (Inventário) notificar reabastecimento
+            // - ver InventoryUpdatedConsumer / tryAllocatePendingOrders.
             order.setStatus("PENDING");
             log.warn("Order pending - insufficient inventory: {}", order.getOrderId());
         }
@@ -67,10 +68,47 @@ public class MarketOrderService {
         marketOrderRepository.save(order);
 
         // Publish WebSocket event
-        orderStatusPublisher.publishOrderCreated(order.getOrderId(), request.getProductType(), 
+        orderStatusPublisher.publishOrderCreated(order.getOrderId(), request.getProductType(),
                                                  request.getQuantity(), request.getCustomerName());
 
         return toResponse(order);
+    }
+
+    /**
+     * Reprocessa os pedidos PENDENTES de um produto assim que a Camada 5
+     * (Inventário) notifica reabastecimento (evento inventory-updated).
+     * Aloca por ordem de prioridade e depois FIFO, enquanto houver stock
+     * disponível.
+     */
+    public void tryAllocatePendingOrders(String productType) {
+        List<MarketOrder> pending = marketOrderRepository
+                .findByProductTypeAndStatusOrderByPriorityDescCreatedAtAsc(productType, "PENDING");
+        if (pending.isEmpty()) {
+            return;
+        }
+
+        for (MarketOrder order : pending) {
+            List<Inventory> inventoryList = inventoryRepository.findByProductName(productType);
+            if (inventoryList.isEmpty()) {
+                break;
+            }
+            Inventory inventory = inventoryList.get(0);
+            if (inventory.getAvailableQuantity() < order.getQuantity()) {
+                break; // ainda não há stock suficiente para este (nem para os seguintes, FIFO)
+            }
+
+            inventory.setReservedQuantity(inventory.getReservedQuantity() + order.getQuantity());
+            inventory.setAvailableQuantity(inventory.getQuantity() - inventory.getReservedQuantity());
+            inventoryRepository.save(inventory);
+
+            order.setStatus("ALLOCATED");
+            order.setFulfilledAt(LocalDateTime.now());
+            marketOrderRepository.save(order);
+
+            log.info("Pedido {} desbloqueado (era PENDING) após reposição de stock de {}", order.getOrderId(), productType);
+            orderStatusPublisher.publishOrderAssembled(order.getOrderId(), order.getProductType(),
+                    order.getQuantity(), order.getCustomerName());
+        }
     }
 
     public List<MarketOrderResponse> getAllOrders() {

@@ -19,6 +19,7 @@ public class Product {
     private String productId;
     private String productName;
     private String batchId;
+    private String sourceBatchIds; // batchIds das unidades consumidas (regra 2:1)
     private int componentCount;
     private boolean assembled;
     private String status;
@@ -34,6 +35,8 @@ public class Product {
     public void setProductName(String productName) { this.productName = productName; }
     public String getBatchId() { return batchId; }
     public void setBatchId(String batchId) { this.batchId = batchId; }
+    public String getSourceBatchIds() { return sourceBatchIds; }
+    public void setSourceBatchIds(String sourceBatchIds) { this.sourceBatchIds = sourceBatchIds; }
     public int getComponentCount() { return componentCount; }
     public void setComponentCount(int componentCount) { this.componentCount = componentCount; }
     public boolean isAssembled() { return assembled; }

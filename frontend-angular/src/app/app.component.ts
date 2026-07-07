@@ -1,7 +1,7 @@
-import { Component, OnInit, signal, computed } from '@angular/core';
+import { Component, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { RouterOutlet } from '@angular/router';
-import { DashboardComponent } from './components/dashboard/dashboard.component';
+import { Router, RouterOutlet } from '@angular/router';
+import { AuthService } from './services/auth.service';
 
 /**
  * AppComponent - Root component of the application
@@ -10,7 +10,7 @@ import { DashboardComponent } from './components/dashboard/dashboard.component';
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [CommonModule, RouterOutlet, DashboardComponent],
+  imports: [CommonModule, RouterOutlet],
   template: `
     <div class="app-container">
       <!-- Header -->
@@ -24,12 +24,15 @@ import { DashboardComponent } from './components/dashboard/dashboard.component';
             <i class="material-icons">{{ isOnline() ? 'check_circle' : 'cancel' }}</i>
             {{ isOnline() ? 'Conectado' : 'Desconectado' }}
           </span>
+          <button class="logout-btn" *ngIf="auth.isAuthenticated()" (click)="logout()">
+            <i class="material-icons">logout</i> Sair
+          </button>
         </div>
       </header>
 
       <!-- Main Content -->
       <main class="app-main">
-        <app-dashboard></app-dashboard>
+        <router-outlet></router-outlet>
       </main>
 
       <!-- Footer -->
@@ -89,6 +92,19 @@ import { DashboardComponent } from './components/dashboard/dashboard.component';
         background: rgba(194, 231, 255, 0.35);
       }
 
+      .logout-btn {
+        display: flex;
+        align-items: center;
+        gap: 0.35rem;
+        padding: 0.5rem 1rem;
+        border-radius: 20px;
+        border: 1px solid rgba(255, 255, 255, 0.4);
+        background: transparent;
+        color: white;
+        font-weight: 600;
+        cursor: pointer;
+      }
+
       .app-main {
         flex: 1;
         padding: 2rem;
@@ -126,10 +142,17 @@ import { DashboardComponent } from './components/dashboard/dashboard.component';
 export class AppComponent implements OnInit {
   isOnline = signal(true);
 
+  constructor(public auth: AuthService, private router: Router) {}
+
   ngOnInit(): void {
     // Check backend connectivity periodically
     this.checkConnectivity();
     setInterval(() => this.checkConnectivity(), 5000);
+  }
+
+  logout(): void {
+    this.auth.logout();
+    this.router.navigate(['/login']);
   }
 
   private checkConnectivity(): void {

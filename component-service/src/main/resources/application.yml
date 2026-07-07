@@ -2,7 +2,7 @@ spring:
   application:
     name: component-service
   datasource:
-    url: jdbc:postgresql://postgres-component:5432/component_db
+    url: jdbc:postgresql://localhost:5432/component_db
     username: industry_user
     password: industry_password
     driver-class-name: org.postgresql.Driver
@@ -13,7 +13,7 @@ spring:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
   kafka:
-    bootstrap-servers: kafka:29092
+    bootstrap-servers: localhost:9092
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer

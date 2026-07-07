@@ -12,4 +12,5 @@ public interface MarketOrderRepository extends JpaRepository<MarketOrder, Long> 
     Optional<MarketOrder> findByOrderId(String orderId);
     List<MarketOrder> findByProductType(String productType);
     List<MarketOrder> findByStatus(String status);
+    List<MarketOrder> findByProductTypeAndStatusOrderByPriorityDescCreatedAtAsc(String productType, String status);
 }

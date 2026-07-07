@@ -67,211 +67,42 @@ services:
       - industry-network
     restart: on-failure
 
-  # PostgreSQL for Raw Material Service
-  postgres-raw-material:
+  # ==========================================================================
+  # Servidor de Base de Dados ÚNICO e global do projecto.
+  # Cada microserviço tem a sua própria base de dados isolada DENTRO deste
+  # mesmo servidor (raw_material_db, processing_db, component_db,
+  # assembly_db) - nenhum serviço acede à base de dados de outro.
+  # ==========================================================================
+  postgres:
     image: postgres:16-alpine
-    container_name: industry-postgres-raw-material
+    container_name: industry-postgres
     environment:
-      POSTGRES_DB: raw_material_db
       POSTGRES_USER: industry_user
       POSTGRES_PASSWORD: industry_password
     ports:
-      - "5431:5432"
+      - "5432:5432"
     volumes:
-      - postgres_raw_material_data:/var/lib/postgresql/data
-      - ./docker-init/raw-material.sql:/docker-entrypoint-initdb.d/init.sql
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker-init/init-databases.sql:/docker-entrypoint-initdb.d/init.sql
     networks:
       - industry-network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U industry_user -d raw_material_db"]
+      test: ["CMD-SHELL", "pg_isready -U industry_user"]
       interval: 10s
       timeout: 5s
       retries: 5
 
-  # PostgreSQL for Processing Service
-  postgres-processing:
-    image: postgres:16-alpine
-    container_name: industry-postgres-processing
-    environment:
-      POSTGRES_DB: processing_db
-      POSTGRES_USER: industry_user
-      POSTGRES_PASSWORD: industry_password
-    ports:
-      - "5435:5432"
-    volumes:
-      - postgres_processing_data:/var/lib/postgresql/data
-      - ./docker-init/processing.sql:/docker-entrypoint-initdb.d/init.sql
-    networks:
-      - industry-network
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U industry_user -d processing_db"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  # PostgreSQL for Component Service
-  postgres-component:
-    image: postgres:16-alpine
-    container_name: industry-postgres-component
-    environment:
-      POSTGRES_DB: component_db
-      POSTGRES_USER: industry_user
-      POSTGRES_PASSWORD: industry_password
-    ports:
-      - "5433:5432"
-    volumes:
-      - postgres_component_data:/var/lib/postgresql/data
-      - ./docker-init/component.sql:/docker-entrypoint-initdb.d/init.sql
-    networks:
-      - industry-network
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U industry_user -d component_db"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  # PostgreSQL for Assembly Service
-  postgres-assembly:
-    image: postgres:16-alpine
-    container_name: industry-postgres-assembly
-    environment:
-      POSTGRES_DB: assembly_db
-      POSTGRES_USER: industry_user
-      POSTGRES_PASSWORD: industry_password
-    ports:
-      - "5434:5432"
-    volumes:
-      - postgres_assembly_data:/var/lib/postgresql/data
-      - ./docker-init/assembly.sql:/docker-entrypoint-initdb.d/init.sql
-    networks:
-      - industry-network
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U industry_user -d assembly_db"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  # Raw Material Service
-  raw-material-service:
-    build:
-      context: .
-      dockerfile: raw-material-service/Dockerfile
-    container_name: industry-raw-material-service
-    ports:
-      - "8081:8081"
-    environment:
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-raw-material:5432/raw_material_db
-      SPRING_DATASOURCE_USERNAME: industry_user
-      SPRING_DATASOURCE_PASSWORD: industry_password
-      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
-      SERVER_PORT: 8081
-    depends_on:
-      postgres-raw-material:
-        condition: service_healthy
-      kafka-init:
-        condition: service_completed_successfully
-    networks:
-      - industry-network
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD-SHELL", "wget -q -O - http://localhost:8081/api/raw-materials/health || exit 1"]
-      interval: 15s
-      timeout: 5s
-      retries: 3
-
-  # Processing Service
-  processing-service:
-    build:
-      context: .
-      dockerfile: processing-service/Dockerfile
-    container_name: industry-processing-service
-    ports:
-      - "8082:8082"
-    environment:
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-processing:5432/processing_db
-      SPRING_DATASOURCE_USERNAME: industry_user
-      SPRING_DATASOURCE_PASSWORD: industry_password
-      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
-      SERVER_PORT: 8082
-    depends_on:
-      postgres-processing:
-        condition: service_healthy
-      kafka-init:
-        condition: service_completed_successfully
-    networks:
-      - industry-network
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD-SHELL", "wget -q -O - http://localhost:8082/api/processing/health || exit 1"]
-      interval: 15s
-      timeout: 5s
-      retries: 3
-
-  # Component Service
-  component-service:
-    build:
-      context: .
-      dockerfile: component-service/Dockerfile
-    container_name: industry-component-service
-    ports:
-      - "8083:8083"
-    environment:
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-component:5432/component_db
-      SPRING_DATASOURCE_USERNAME: industry_user
-      SPRING_DATASOURCE_PASSWORD: industry_password
-      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
-      SERVER_PORT: 8083
-    depends_on:
-      postgres-component:
-        condition: service_healthy
-      kafka-init:
-        condition: service_completed_successfully
-    networks:
-      - industry-network
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD-SHELL", "wget -q -O - http://localhost:8083/api/components/health || exit 1"]
-      interval: 15s
-      timeout: 5s
-      retries: 3
-
-  # Assembly Service
-  assembly-service:
-    build:
-      context: .
-      dockerfile: assembly-service/Dockerfile
-    container_name: industry-assembly-service
-    ports:
-      - "8084:8084"
-    environment:
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-assembly:5432/assembly_db
-      SPRING_DATASOURCE_USERNAME: industry_user
-      SPRING_DATASOURCE_PASSWORD: industry_password
-      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
-      SERVER_PORT: 8084
-    depends_on:
-      postgres-assembly:
-        condition: service_healthy
-      kafka-init:
-        condition: service_completed_successfully
-    networks:
-      - industry-network
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD-SHELL", "wget -q -O - http://localhost:8084/api/market-orders/health || exit 1"]
-      interval: 15s
-      timeout: 5s
-      retries: 3
+# ==============================================================================
+# NOTA DE ARQUITECTURA: os microserviços (raw-material, processing, component
+# e assembly) NÃO correm em contentores. O enunciado restringe explicitamente
+# o uso de Docker/Podman à execução do Kafka e do servidor de Base de Dados de
+# suporte. Os microserviços devem ser compilados e executados nativamente no
+# ambiente local (ver quickstart.sh: mvn spring-boot:run / java -jar).
+# ==============================================================================
 
 volumes:
-  postgres_raw_material_data:
-  postgres_processing_data:
-  postgres_component_data:
-  postgres_assembly_data:
+  postgres_data:
 
 networks:
   industry-network:

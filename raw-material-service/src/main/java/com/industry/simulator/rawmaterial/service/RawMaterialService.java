@@ -2,8 +2,10 @@ package com.industry.simulator.rawmaterial.service;
 
 import com.industry.simulator.common.events.RawMaterialProducedEvent;
 import com.industry.simulator.common.model.Component;
+import com.industry.simulator.rawmaterial.entity.ExtractionConfig;
 import com.industry.simulator.rawmaterial.entity.RawMaterial;
 import com.industry.simulator.rawmaterial.kafka.RawMaterialProducer;
+import com.industry.simulator.rawmaterial.repository.ExtractionConfigRepository;
 import com.industry.simulator.rawmaterial.repository.RawMaterialRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -12,19 +14,31 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
+/**
+ * A produção autónoma e contínua da Camada 1 é feita por
+ * {@link RawMaterialWorkerPoolService}. Este serviço expõe apenas uma via
+ * manual (REST) para gestão/testes, reaproveitando a mesma configuração
+ * ({@link ExtractionConfig}) em vez de tempos fixos no código.
+ */
 @Service
 public class RawMaterialService {
 
     private static final Logger log = LoggerFactory.getLogger(RawMaterialService.class);
+    private static final long FALLBACK_EXTRACTION_MS = 3000;
+    private static final long FALLBACK_TRANSPORT_MS = 1500;
 
     @Autowired
     private RawMaterialRepository repository;
 
     @Autowired
     private RawMaterialProducer producer;
+
+    @Autowired
+    private ExtractionConfigRepository extractionConfigRepository;
 
     public RawMaterial createRawMaterial(String materialName, String materialType, double quantity, String unit) {
         String batchId = UUID.randomUUID().toString();
@@ -41,19 +55,27 @@ public class RawMaterialService {
         RawMaterial saved = repository.save(material);
         log.info("{} | raw-material-service | Registered extraction request for {}", batchId, materialName);
 
-        // Simulate extraction delay asynchronously
+        Optional<ExtractionConfig> matchingConfig =
+                extractionConfigRepository.findFirstByMaterialNameIgnoreCaseAndActiveTrue(materialName);
+        long extractionDuration = matchingConfig.map(ExtractionConfig::getExtractionDurationMs).orElse(FALLBACK_EXTRACTION_MS);
+        long transportDuration = matchingConfig.map(ExtractionConfig::getTransportDurationMs).orElse(FALLBACK_TRANSPORT_MS);
+        String factory = matchingConfig.map(ExtractionConfig::getFactory).orElse("mining-site-alpha");
+        Component.Purpose purpose = matchingConfig
+                .map(c -> Component.Purpose.builder()
+                        .targetProduct(c.getTargetProduct())
+                        .targetComponent(c.getTargetComponent())
+                        .description(c.getDescription())
+                        .build())
+                .orElse(null);
+
         CompletableFuture.runAsync(() -> {
             try {
-                long extractionDuration = 10000;
-                long transportDuration = 5000;
-                
                 log.info("{} | raw-material-service | Starting EXTRACTION ({}ms)", batchId, extractionDuration);
                 Thread.sleep(extractionDuration);
-                
+
                 log.info("{} | raw-material-service | Starting TRANSPORT ({}ms)", batchId, transportDuration);
                 Thread.sleep(transportDuration);
 
-                // Build v2 compliant component
                 Component component = Component.builder()
                         .id(saved.getId())
                         .name(materialName)
@@ -65,8 +87,9 @@ public class RawMaterialService {
                         .updatedAt(LocalDateTime.now())
                         .producer(Component.Producer.builder()
                                 .service("raw-material-service")
-                                .factory("mining-site-alpha")
+                                .factory(factory)
                                 .build())
+                        .purpose(purpose)
                         .build();
 
                 RawMaterialProducedEvent event = RawMaterialProducedEvent.builder()

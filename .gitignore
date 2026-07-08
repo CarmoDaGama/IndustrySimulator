@@ -90,3 +90,6 @@ Thumbs.db
 # Virtual machines
 hs_err_pid*
 replay_pid*
+# Override local do docker-compose (porta da BD específica da máquina)
+docker-compose.override.yml
+logs/

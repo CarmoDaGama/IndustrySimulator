@@ -60,6 +60,11 @@
                 <configuration>
                     <source>17</source>
                     <target>17</target>
+                    <!-- Obrigatório no Spring Boot 3.2+ para @PathVariable/@RequestParam
+                         sem nome explícito (resolução de nomes de parâmetros em runtime).
+                         O spring-boot-starter-parent ativa isto por omissão; como usamos
+                         um parent próprio, temos de o declarar. -->
+                    <parameters>true</parameters>
                     <annotationProcessorPaths>
                         <path>
                             <groupId>org.projectlombok</groupId>

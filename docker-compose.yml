@@ -53,16 +53,17 @@ services:
     depends_on:
       kafka:
         condition: service_healthy
-    entrypoint: >
-      bash -c "
-      echo 'Creating Kafka topics...'
-      kafka-topics --bootstrap-server kafka:29092 --create --topic raw-material-produced --partitions 1 --replication-factor 1 --if-not-exists
-      kafka-topics --bootstrap-server kafka:29092 --create --topic processing-completed --partitions 1 --replication-factor 1 --if-not-exists
-      kafka-topics --bootstrap-server kafka:29092 --create --topic component-assembled --partitions 1 --replication-factor 1 --if-not-exists
-      kafka-topics --bootstrap-server kafka:29092 --create --topic product-assembled --partitions 1 --replication-factor 1 --if-not-exists
-      kafka-topics --bootstrap-server kafka:29092 --create --topic inventory-updated --partitions 1 --replication-factor 1 --if-not-exists
-      echo 'Kafka topics created successfully!'
-      "
+    entrypoint:
+      - bash
+      - -c
+      - |
+        echo 'Creating Kafka topics...'
+        kafka-topics --bootstrap-server kafka:29092 --create --topic raw-material-produced --partitions 1 --replication-factor 1 --if-not-exists
+        kafka-topics --bootstrap-server kafka:29092 --create --topic processing-completed --partitions 1 --replication-factor 1 --if-not-exists
+        kafka-topics --bootstrap-server kafka:29092 --create --topic component-assembled --partitions 1 --replication-factor 1 --if-not-exists
+        kafka-topics --bootstrap-server kafka:29092 --create --topic product-assembled --partitions 1 --replication-factor 1 --if-not-exists
+        kafka-topics --bootstrap-server kafka:29092 --create --topic inventory-updated --partitions 1 --replication-factor 1 --if-not-exists
+        echo 'Kafka topics created successfully!'
     networks:
       - industry-network
     restart: on-failure

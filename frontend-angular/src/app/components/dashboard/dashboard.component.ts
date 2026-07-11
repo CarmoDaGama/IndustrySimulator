@@ -5,6 +5,9 @@ import { PipelineConfigComponent } from '../pipeline-config/pipeline-config.comp
 import { OrderFormComponent } from '../order-form/order-form.component';
 import { InventoryMonitorComponent } from '../inventory-monitor/inventory-monitor.component';
 import { EventsMonitorComponent } from '../events-monitor/events-monitor.component';
+import { WorkerConfigComponent } from '../worker-config/worker-config.component';
+import { ExtractionConfigComponent } from '../extraction-config/extraction-config.component';
+import { BomConfigComponent } from '../bom-config/bom-config.component';
 import { ApiService } from '../../services/api.service';
 import { EventService } from '../../services/event.service';
 import { WebSocketService } from '../../services/websocket.service';
@@ -23,6 +26,9 @@ import { WebSocketService } from '../../services/websocket.service';
     OrderFormComponent,
     InventoryMonitorComponent,
     EventsMonitorComponent,
+    WorkerConfigComponent,
+    ExtractionConfigComponent,
+    BomConfigComponent,
   ],
   template: `
     <div class="dashboard-wrapper">
@@ -78,11 +84,20 @@ import { WebSocketService } from '../../services/websocket.service';
 
       <!-- Content Area -->
       <div class="dashboard-content">
-        <!-- Configuration -->
+        <!-- Operations -->
         <div *ngIf="activeTab() === 'configuration'" class="pane animate-slide-up">
           <div class="grid-2">
             <app-pipeline-config></app-pipeline-config>
             <app-order-form></app-order-form>
+          </div>
+        </div>
+
+        <!-- Portal de Configurações (Secção 6 do enunciado) -->
+        <div *ngIf="activeTab() === 'settings'" class="pane animate-slide-up">
+          <div class="settings-stack">
+            <app-worker-config></app-worker-config>
+            <app-extraction-config></app-extraction-config>
+            <app-bom-config></app-bom-config>
           </div>
         </div>
 
@@ -126,6 +141,7 @@ import { WebSocketService } from '../../services/websocket.service';
   `,
   styles: [`
     .dashboard-wrapper { display: flex; flex-direction: column; gap: 2rem; }
+    .settings-stack { display: flex; flex-direction: column; gap: 1.5rem; }
     .stats-bar { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1.5rem; }
     .stat-card { padding: 1.5rem; border-radius: 1rem; display: flex; align-items: center; gap: 1.5rem; transition: var(--transition); }
     .stat-icon { width: 56px; height: 56px; border-radius: 12px; display: flex; align-items: center; justify-content: center; background: rgba(255, 255, 255, 0.05); color: var(--text-muted); }
@@ -171,6 +187,7 @@ export class DashboardComponent implements OnInit {
   
   tabs = [
     { id: 'configuration', label: 'Operações', icon: 'precision_manufacturing' },
+    { id: 'settings', label: 'Configurações', icon: 'tune' },
     { id: 'monitoring', label: 'Live Monitor', icon: 'sensors' },
     { id: 'analytics', label: 'Estatísticas', icon: 'insights' },
   ];

@@ -10,6 +10,11 @@ import {
   InventoryItem,
   AssembledProduct,
   ProductionRequest,
+  ServiceKey,
+  PipelineStep,
+  WorkerPoolStatus,
+  ExtractionConfig,
+  CompatibleMaterial,
 } from '../models';
 
 /**
@@ -113,6 +118,116 @@ export class ApiService {
         tap(() => this.setLoading(false)),
         catchError((error) => this.handleError(error))
       );
+  }
+
+  // ============================================================================
+  // PORTAL DE CONFIGURAÇÕES (genérico, por microserviço)
+  // ============================================================================
+
+  /** Raiz REST de cada microserviço (todos expõem /pipeline e /workers). */
+  private serviceRoot(service: ServiceKey): string {
+    switch (service) {
+      case 'raw-material':
+        return this.rawMaterialUrl;
+      case 'processing':
+        return this.processingUrl;
+      case 'component':
+        return this.componentUrl;
+      case 'assembly':
+        return `${this.assemblyUrl}/assembly`;
+    }
+  }
+
+  /** Etapas da pipeline (durationMs) de um microserviço. */
+  getPipelineFor(service: ServiceKey): Observable<PipelineStep[]> {
+    return this.http
+      .get<PipelineStep[]>(`${this.serviceRoot(service)}/pipeline`)
+      .pipe(catchError((error) => this.handleError(error)));
+  }
+
+  savePipelineFor(service: ServiceKey, steps: PipelineStep[]): Observable<PipelineStep[]> {
+    this.setLoading(true);
+    return this.http
+      .post<PipelineStep[]>(`${this.serviceRoot(service)}/pipeline`, steps)
+      .pipe(
+        tap(() => this.setLoading(false)),
+        catchError((error) => this.handleError(error))
+      );
+  }
+
+  /** Número de Workers (Threads) activos e tamanho da fila. */
+  getWorkers(service: ServiceKey): Observable<WorkerPoolStatus> {
+    return this.http
+      .get<WorkerPoolStatus>(`${this.serviceRoot(service)}/workers`)
+      .pipe(catchError((error) => this.handleError(error)));
+  }
+
+  setWorkers(service: ServiceKey, workerCount: number): Observable<WorkerPoolStatus> {
+    this.setLoading(true);
+    return this.http
+      .put<WorkerPoolStatus>(`${this.serviceRoot(service)}/workers`, { workerCount })
+      .pipe(
+        tap(() => this.setLoading(false)),
+        catchError((error) => this.handleError(error))
+      );
+  }
+
+  // --- Camada 1: configuração de extracção (mapeamento genérico) ---
+
+  getExtractionConfigs(): Observable<ExtractionConfig[]> {
+    return this.http
+      .get<ExtractionConfig[]>(`${this.rawMaterialUrl}/extraction-config`)
+      .pipe(catchError((error) => this.handleError(error)));
+  }
+
+  createExtractionConfig(config: ExtractionConfig): Observable<ExtractionConfig> {
+    this.setLoading(true);
+    return this.http
+      .post<ExtractionConfig>(`${this.rawMaterialUrl}/extraction-config`, config)
+      .pipe(
+        tap(() => this.setLoading(false)),
+        catchError((error) => this.handleError(error))
+      );
+  }
+
+  updateExtractionConfig(id: number, config: ExtractionConfig): Observable<ExtractionConfig> {
+    this.setLoading(true);
+    return this.http
+      .put<ExtractionConfig>(`${this.rawMaterialUrl}/extraction-config/${id}`, config)
+      .pipe(
+        tap(() => this.setLoading(false)),
+        catchError((error) => this.handleError(error))
+      );
+  }
+
+  deleteExtractionConfig(id: number): Observable<void> {
+    return this.http
+      .delete<void>(`${this.rawMaterialUrl}/extraction-config/${id}`)
+      .pipe(catchError((error) => this.handleError(error)));
+  }
+
+  // --- Camada 3: regras de compatibilidade BOM ---
+
+  getCompatibleMaterials(): Observable<CompatibleMaterial[]> {
+    return this.http
+      .get<CompatibleMaterial[]>(`${this.componentUrl}/bom/compatible-materials`)
+      .pipe(catchError((error) => this.handleError(error)));
+  }
+
+  addCompatibleMaterial(material: CompatibleMaterial): Observable<CompatibleMaterial> {
+    this.setLoading(true);
+    return this.http
+      .post<CompatibleMaterial>(`${this.componentUrl}/bom/compatible-materials`, material)
+      .pipe(
+        tap(() => this.setLoading(false)),
+        catchError((error) => this.handleError(error))
+      );
+  }
+
+  deleteCompatibleMaterial(id: number): Observable<void> {
+    return this.http
+      .delete<void>(`${this.componentUrl}/bom/compatible-materials/${id}`)
+      .pipe(catchError((error) => this.handleError(error)));
   }
 
   // ============================================================================

@@ -2,8 +2,13 @@ import { Component, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ApiService } from '../../services/api.service';
-import { PipelineStep } from '../../models';
+import { PipelineStep, SERVICES, ServiceInfo, ServiceKey } from '../../models';
 
+/**
+ * Portal de Configurações — etapas (durationMs) da pipeline de cada
+ * microserviço. A Camada 1 não aparece aqui: os seus tempos vivem na
+ * configuração de extracção.
+ */
 @Component({
   selector: 'app-pipeline-config',
   standalone: true,
@@ -17,9 +22,21 @@ import { PipelineStep } from '../../models';
         </button>
       </div>
 
+      <div class="svc-tabs">
+        <button
+          *ngFor="let s of services"
+          class="svc-tab"
+          [class.active]="selected() === s.key"
+          (click)="select(s.key)"
+        >
+          <span class="layer">{{ s.layer }}</span>
+          <span>{{ s.label }}</span>
+        </button>
+      </div>
+
       <div class="steps-container">
         <div *ngIf="steps().length === 0" class="empty-msg">
-          Configure as etapas industriais
+          Sem etapas — será usada a duração por omissão do serviço.
         </div>
 
         <div *ngFor="let step of steps(); let i = index" class="step-box">
@@ -28,7 +45,7 @@ import { PipelineStep } from '../../models';
             <input [(ngModel)]="step.stepName" placeholder="Nome da Etapa (ex: SMELTING)" class="input-field minimal" />
             <button (click)="removeStep(i)" class="btn-icon danger"><i class="material-icons">delete</i></button>
           </div>
-          
+
           <div class="step-body">
             <div class="field">
               <label>Duração (ms)</label>
@@ -50,12 +67,17 @@ import { PipelineStep } from '../../models';
           <i class="material-icons">cloud_upload</i> Salvar
         </button>
       </div>
-      
+
       <div *ngIf="msg()" class="toast" [class.error]="isError()">{{ msg() }}</div>
     </div>
   `,
   styles: [`
-    .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; }
+    .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
+    .svc-tabs { display: flex; gap: 0.5rem; margin-bottom: 1.25rem; flex-wrap: wrap; }
+    .svc-tab { display: flex; flex-direction: column; align-items: flex-start; gap: 0.1rem; padding: 0.5rem 0.85rem; border-radius: 0.6rem; border: 1px solid var(--border, rgba(255,255,255,0.15)); background: transparent; color: inherit; cursor: pointer; font-size: 0.85rem; }
+    .svc-tab .layer { font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.05em; opacity: 0.6; }
+    .svc-tab.active { background: var(--primary, #2563eb); color: #fff; border-color: transparent; }
+    .svc-tab.active .layer { opacity: 0.85; }
     .steps-container { display: flex; flex-direction: column; gap: 1rem; max-height: 400px; overflow-y: auto; padding-right: 0.5rem; }
     .step-box { background: rgba(0,0,0,0.2); border-radius: 0.75rem; padding: 1rem; border: 1px solid var(--border); }
     .step-head { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.75rem; }
@@ -72,6 +94,10 @@ import { PipelineStep } from '../../models';
   `]
 })
 export class PipelineConfigComponent implements OnInit {
+  /** Só as camadas com pipeline configurável (a Camada 1 usa a config de extracção). */
+  services: ServiceInfo[] = SERVICES.filter((s) => s.hasPipeline);
+
+  selected = signal<ServiceKey>('processing');
   steps = signal<PipelineStep[]>([]);
   isSaving = signal(false);
   msg = signal('');
@@ -80,7 +106,21 @@ export class PipelineConfigComponent implements OnInit {
   constructor(private apiService: ApiService) {}
 
   ngOnInit(): void {
-    this.apiService.getPipeline().subscribe(steps => this.steps.set(steps || []));
+    this.load();
+  }
+
+  select(service: ServiceKey): void {
+    if (this.selected() === service) return;
+    this.selected.set(service);
+    this.steps.set([]);
+    this.load();
+  }
+
+  private load(): void {
+    this.apiService.getPipelineFor(this.selected()).subscribe({
+      next: (steps) => this.steps.set(steps || []),
+      error: () => this.showMsg('Serviço indisponível', true),
+    });
   }
 
   addStep(): void {
@@ -92,12 +132,12 @@ export class PipelineConfigComponent implements OnInit {
   }
 
   totalDuration(): number {
-    return this.steps().reduce((acc, s) => acc + s.durationMs, 0);
+    return this.steps().reduce((acc, s) => acc + Number(s.durationMs), 0);
   }
 
   savePipeline(): void {
     this.isSaving.set(true);
-    this.apiService.savePipeline(this.steps()).subscribe({
+    this.apiService.savePipelineFor(this.selected(), this.steps()).subscribe({
       next: (s) => {
         this.steps.set(s);
         this.showMsg('Configuração salva!');

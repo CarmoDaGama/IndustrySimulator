@@ -1,5 +1,51 @@
 // Models and Interfaces for Industry Simulator
 
+/** Microserviços (camadas) configuráveis no portal. */
+export type ServiceKey = 'raw-material' | 'processing' | 'component' | 'assembly';
+
+export interface ServiceInfo {
+  key: ServiceKey;
+  label: string;
+  layer: string;
+  /** raw-material não tem pipeline configurável (usa a config de extracção). */
+  hasPipeline: boolean;
+}
+
+export const SERVICES: ServiceInfo[] = [
+  { key: 'raw-material', label: 'Extracção', layer: 'Camada 1', hasPipeline: false },
+  { key: 'processing', label: 'Processamento', layer: 'Camada 2', hasPipeline: true },
+  { key: 'component', label: 'Componentes', layer: 'Camada 3', hasPipeline: true },
+  { key: 'assembly', label: 'Montagem', layer: 'Camada 4', hasPipeline: true },
+];
+
+/** Estado da pool de Workers (Threads) de um microserviço. */
+export interface WorkerPoolStatus {
+  workerCount: number;
+  queueSize?: number;
+}
+
+/** Config genérica do recurso extraído autonomamente pela Camada 1. */
+export interface ExtractionConfig {
+  id?: number;
+  materialName: string;
+  materialType: string;
+  quantityPerCycle: number;
+  unit: string;
+  extractionDurationMs: number;
+  transportDurationMs: number;
+  factory: string;
+  targetProduct: string;
+  targetComponent: string;
+  description: string;
+  active: boolean;
+}
+
+/** Regra de compatibilidade BOM (mapeamento genérico, vinda da BD). */
+export interface CompatibleMaterial {
+  id?: number;
+  materialType: string;
+}
+
 export interface PipelineStep {
   id: number;
   stepName: string;

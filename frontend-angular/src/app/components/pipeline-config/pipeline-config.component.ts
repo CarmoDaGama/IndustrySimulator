@@ -34,6 +34,12 @@ import { PipelineStep, SERVICES, ServiceInfo, ServiceKey } from '../../models';
         </button>
       </div>
 
+      <p class="svc-hint" *ngIf="selected() === 'raw-material'">
+        Ao definir etapas aqui, elas passam a ditar as fases e os tempos da extracção
+        (ex.: EXTRACTION, INITIAL_PROCESSING, PACKAGING_FOR_TRANSPORT). Sem etapas, valem
+        os tempos definidos em cada recurso, no separador Configurações.
+      </p>
+
       <div class="steps-container">
         <div *ngIf="steps().length === 0" class="empty-msg">
           Sem etapas — será usada a duração por omissão do serviço.
@@ -78,6 +84,7 @@ import { PipelineStep, SERVICES, ServiceInfo, ServiceKey } from '../../models';
     .svc-tab .layer { font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.05em; opacity: 0.6; }
     .svc-tab.active { background: var(--primary, #2563eb); color: #fff; border-color: transparent; }
     .svc-tab.active .layer { opacity: 0.85; }
+    .svc-hint { font-size: 0.75rem; color: var(--text-muted); background: rgba(255,255,255,0.04); border-radius: 0.5rem; padding: 0.6rem 0.75rem; margin: 0 0 1rem; line-height: 1.45; }
     .steps-container { display: flex; flex-direction: column; gap: 1rem; max-height: 400px; overflow-y: auto; padding-right: 0.5rem; }
     .step-box { background: rgba(0,0,0,0.2); border-radius: 0.75rem; padding: 1rem; border: 1px solid var(--border); }
     .step-head { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.75rem; }

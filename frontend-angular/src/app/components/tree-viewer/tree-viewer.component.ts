@@ -39,6 +39,8 @@ import { CommonModule } from '@angular/common';
     </div>
   `,
   styles: [`
+    :host { display: block; max-width: 100%; overflow-x: auto; }
+    * { overflow-wrap: anywhere; }
     .tree-node {
       margin-left: 1rem;
       border-left: 1px dashed rgba(255, 255, 255, 0.1);
@@ -67,7 +69,7 @@ import { CommonModule } from '@angular/common';
 
     .node-info:hover {
       background: rgba(255, 255, 255, 0.08);
-      border-color: rgba(99, 102, 241, 0.3);
+      border-color: rgba(16, 185, 129, 0.3);
     }
 
     .expand-icon {
@@ -76,7 +78,7 @@ import { CommonModule } from '@angular/common';
     }
 
     .node-type-icon {
-      color: #6366f1;
+      color: #10b981;
     }
 
     .node-details {
@@ -112,8 +114,8 @@ import { CommonModule } from '@angular/common';
 
     .node-badge {
       font-size: 0.65rem;
-      background: rgba(99, 102, 241, 0.2);
-      color: #818cf8;
+      background: rgba(16, 185, 129, 0.2);
+      color: #34d399;
       padding: 0.1rem 0.4rem;
       border-radius: 4px;
       font-weight: 700;

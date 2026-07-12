@@ -6,10 +6,12 @@ import com.industry.simulator.common.worker.ContinuousWorkerPool;
 import com.industry.simulator.common.worker.StepSpec;
 import com.industry.simulator.common.worker.WorkerActivity;
 import com.industry.simulator.rawmaterial.entity.ExtractionConfig;
+import com.industry.simulator.rawmaterial.entity.PipelineStep;
 import com.industry.simulator.rawmaterial.entity.RawMaterial;
 import com.industry.simulator.rawmaterial.entity.WorkerPoolConfig;
 import com.industry.simulator.rawmaterial.kafka.RawMaterialProducer;
 import com.industry.simulator.rawmaterial.repository.ExtractionConfigRepository;
+import com.industry.simulator.rawmaterial.repository.PipelineStepRepository;
 import com.industry.simulator.rawmaterial.repository.RawMaterialRepository;
 import com.industry.simulator.rawmaterial.repository.WorkerPoolConfigRepository;
 import jakarta.annotation.PostConstruct;
@@ -22,6 +24,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.stream.Collectors;
 
 /**
  * Camada 1 (Extracção). Ao contrário das restantes camadas, não depende de
@@ -46,6 +49,9 @@ public class RawMaterialWorkerPoolService {
 
     @Autowired
     private WorkerPoolConfigRepository workerPoolConfigRepository;
+
+    @Autowired
+    private PipelineStepRepository pipelineRepository;
 
     private ContinuousWorkerPool<RawMaterialProducedEvent> pool;
 
@@ -100,12 +106,25 @@ public class RawMaterialWorkerPoolService {
         ExtractionConfig config = configs.get(ThreadLocalRandom.current().nextInt(configs.size()));
         String batchId = UUID.randomUUID().toString();
 
-        List<StepSpec> steps = List.of(
+        return new ContinuousWorkerPool.Cycle<>(currentSteps(config), batchId, () -> buildEvent(config, batchId));
+    }
+
+    /**
+     * Etapas da extracção. Se o portal tiver uma pipeline configurada para esta
+     * camada, é ela que define as fases e os tempos; caso contrário, usam-se os
+     * tempos definidos no próprio recurso (extracção + transporte).
+     */
+    private List<StepSpec> currentSteps(ExtractionConfig config) {
+        List<PipelineStep> steps = pipelineRepository.findAllByIsActiveOrderByStepOrderAsc(true);
+        if (!steps.isEmpty()) {
+            return steps.stream()
+                    .map(s -> new StepSpec(s.getStepName(), s.getDurationMs()))
+                    .collect(Collectors.toList());
+        }
+        return List.of(
                 new StepSpec("EXTRACTION", config.getExtractionDurationMs()),
                 new StepSpec("TRANSPORT", config.getTransportDurationMs())
         );
-
-        return new ContinuousWorkerPool.Cycle<>(steps, batchId, () -> buildEvent(config, batchId));
     }
 
     /** Persiste o material extraído e constrói o evento (após as etapas correrem). */

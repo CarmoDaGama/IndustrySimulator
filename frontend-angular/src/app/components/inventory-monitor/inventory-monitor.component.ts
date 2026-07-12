@@ -88,7 +88,7 @@ import { InventoryItem } from '../../models';
   `,
   styles: [`
     .h-full { height: 100%; }
-    .card { padding: 1.5rem; border-radius: 1rem; }
+    .card { padding: 1.5rem; border-radius: 1rem; min-width: 0; overflow: hidden; }
     .card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1rem; }
     .card-header h3 { display: flex; align-items: center; gap: 0.5rem; margin: 0; }
     .subtitle { font-size: 0.72rem; color: var(--text-dim, #888); }
@@ -106,7 +106,7 @@ import { InventoryItem } from '../../models';
 
     .inventory-list { display: flex; flex-direction: column; gap: 0.75rem; max-height: 420px; overflow-y: auto; }
     .inventory-item { background: rgba(255,255,255,0.03); padding: 0.75rem 1rem; border-radius: 0.75rem; display: flex; align-items: center; gap: 1rem; border: 1px solid var(--border); }
-    .item-icon { width: 40px; height: 40px; background: rgba(99,102,241,0.1); border-radius: 8px; display: flex; align-items: center; justify-content: center; color: var(--primary-light); flex-shrink: 0; }
+    .item-icon { width: 40px; height: 40px; background: rgba(16,185,129,0.1); border-radius: 8px; display: flex; align-items: center; justify-content: center; color: var(--primary-light); flex-shrink: 0; }
     .item-info { flex: 1; min-width: 0; }
     .item-name { font-weight: 700; font-size: 0.9rem; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .item-meta { font-size: 0.68rem; color: var(--text-dim, #888); display: flex; align-items: center; gap: 0.25rem; margin-top: 0.1rem; }
@@ -115,7 +115,7 @@ import { InventoryItem } from '../../models';
 
     .bar { height: 5px; border-radius: 999px; background: #10b981; margin: 0.45rem 0 0.3rem; overflow: hidden; }
     .bar-reserved { height: 100%; background: #f59e0b; }
-    .split { display: flex; gap: 0.35rem; }
+    .split { display: flex; gap: 0.35rem; flex-wrap: wrap; }
     .chip { font-size: 0.62rem; padding: 0.1rem 0.4rem; border-radius: 999px; font-weight: 700; }
     .chip.reserved { background: rgba(245,158,11,0.15); color: #f59e0b; }
     .chip.available { background: rgba(16,185,129,0.15); color: #10b981; }
@@ -129,6 +129,12 @@ import { InventoryItem } from '../../models';
     .large-icon { font-size: 3rem; color: var(--text-dim); opacity: 0.3; }
     .loading-state { text-align: center; padding: 2rem; color: var(--text-dim); }
     .small { font-size: 0.72rem; font-weight: 400; opacity: 0.8; line-height: 1.45; max-width: 260px; }
+
+    @media (max-width: 520px) {
+      .totals { grid-template-columns: 1fr; }
+      .inventory-item { flex-wrap: wrap; }
+      .item-stock { text-align: left; }
+    }
   `]
 })
 export class InventoryMonitorComponent implements OnInit, OnDestroy {

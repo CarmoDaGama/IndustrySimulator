@@ -7,12 +7,11 @@ export interface ServiceInfo {
   key: ServiceKey;
   label: string;
   layer: string;
-  /** raw-material não tem pipeline configurável (usa a config de extracção). */
   hasPipeline: boolean;
 }
 
 export const SERVICES: ServiceInfo[] = [
-  { key: 'raw-material', label: 'Extracção', layer: 'Camada 1', hasPipeline: false },
+  { key: 'raw-material', label: 'Extracção', layer: 'Camada 1', hasPipeline: true },
   { key: 'processing', label: 'Processamento', layer: 'Camada 2', hasPipeline: true },
   { key: 'component', label: 'Componentes', layer: 'Camada 3', hasPipeline: true },
   { key: 'assembly', label: 'Montagem', layer: 'Camada 4', hasPipeline: true },

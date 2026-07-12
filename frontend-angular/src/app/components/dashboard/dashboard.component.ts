@@ -159,15 +159,17 @@ import { WebSocketService } from '../../services/websocket.service';
     .stat-value { font-size: 2rem; font-weight: 800; color: #fff; line-height: 1.2; }
     .highlight-success .stat-icon { color: var(--success); background: rgba(16, 185, 129, 0.1); }
     .highlight-warning .stat-icon { color: var(--warning); background: rgba(245, 158, 11, 0.1); }
-    .highlight-primary .stat-icon { color: var(--primary-light); background: rgba(99, 102, 241, 0.1); }
+    .highlight-primary .stat-icon { color: var(--primary-light); background: rgba(16, 185, 129, 0.1); }
 
     .dashboard-nav { display: flex; padding: 0.5rem; border-radius: 1rem; gap: 0.5rem; width: fit-content; margin: 0 auto; }
     .nav-item { padding: 0.75rem 1.5rem; border-radius: 0.75rem; border: none; background: transparent; color: var(--text-muted); cursor: pointer; display: flex; align-items: center; gap: 0.75rem; font-weight: 600; transition: var(--transition); }
     .nav-item:hover { background: rgba(255, 255, 255, 0.05); color: #fff; }
-    .nav-item.active { background: var(--primary); color: #fff; box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3); }
+    .nav-item.active { background: var(--primary); color: #fff; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3); }
 
-    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; }
-    .grid-layout { display: grid; grid-template-columns: 1fr 380px; gap: 2rem; }
+    .grid-2 { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 2rem; }
+    .grid-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 380px); gap: 2rem; }
+    .col-main, .col-side { min-width: 0; }
+    .dashboard-content, .pane { min-width: 0; }
     .health-card { padding: 1.5rem; border-radius: 1rem; }
     .health-card h3 { font-size: 1rem; margin-bottom: 1.25rem; display: flex; align-items: center; gap: 0.5rem; color: var(--primary-light); }
     .health-item { display: flex; justify-content: space-between; margin-bottom: 0.75rem; font-size: 0.9rem; }

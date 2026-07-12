@@ -92,39 +92,32 @@ public class RawMaterialWorkerPoolService {
     }
 
     /**
-     * Prepara o próximo ciclo de extracção para uma configuração activa
-     * escolhida aleatoriamente: declara as etapas (EXTRACTION, TRANSPORT) que o
-     * pool executa e cronometra uma a uma, e o item a produzir no fim.
-     * Devolve {@code null} quando ainda não existe nenhuma configuração activa,
-     * deixando o {@link ContinuousWorkerPool} tentar de novo em breve.
+     * Prepara o próximo ciclo de extracção para um recurso activo escolhido
+     * aleatoriamente. Tal como nas restantes camadas, os tempos vêm da pipeline
+     * configurada no portal — se não houver pipeline (ou nenhum recurso activo),
+     * devolve {@code null} e os Workers ficam à espera, sem produzir.
      */
     private ContinuousWorkerPool.Cycle<RawMaterialProducedEvent> nextCycle() {
         List<ExtractionConfig> configs = extractionConfigRepository.findByActiveTrue();
-        if (configs.isEmpty()) {
+        List<StepSpec> steps = currentSteps();
+        if (configs.isEmpty() || steps.isEmpty()) {
             return null;
         }
         ExtractionConfig config = configs.get(ThreadLocalRandom.current().nextInt(configs.size()));
         String batchId = UUID.randomUUID().toString();
 
-        return new ContinuousWorkerPool.Cycle<>(currentSteps(config), batchId, () -> buildEvent(config, batchId));
+        return new ContinuousWorkerPool.Cycle<>(steps, batchId, () -> buildEvent(config, batchId));
     }
 
     /**
-     * Etapas da extracção. Se o portal tiver uma pipeline configurada para esta
-     * camada, é ela que define as fases e os tempos; caso contrário, usam-se os
-     * tempos definidos no próprio recurso (extracção + transporte).
+     * Etapas da extracção, vindas da pipeline configurada no portal (ex.:
+     * EXTRACTION, INITIAL_PROCESSING, PACKAGING_FOR_TRANSPORT). Não há tempos
+     * fixos no código: sem pipeline, a camada não produz.
      */
-    private List<StepSpec> currentSteps(ExtractionConfig config) {
-        List<PipelineStep> steps = pipelineRepository.findAllByIsActiveOrderByStepOrderAsc(true);
-        if (!steps.isEmpty()) {
-            return steps.stream()
-                    .map(s -> new StepSpec(s.getStepName(), s.getDurationMs()))
-                    .collect(Collectors.toList());
-        }
-        return List.of(
-                new StepSpec("EXTRACTION", config.getExtractionDurationMs()),
-                new StepSpec("TRANSPORT", config.getTransportDurationMs())
-        );
+    private List<StepSpec> currentSteps() {
+        return pipelineRepository.findAllByIsActiveOrderByStepOrderAsc(true).stream()
+                .map(s -> new StepSpec(s.getStepName(), s.getDurationMs()))
+                .collect(Collectors.toList());
     }
 
     /** Persiste o material extraído e constrói o evento (após as etapas correrem). */

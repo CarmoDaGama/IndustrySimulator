@@ -26,6 +26,8 @@ import { ExtractionConfig } from '../../models';
       <p class="hint">
         A extracção é autónoma e contínua: assim que um recurso estiver activo,
         os Workers da Camada 1 extraem-no em ciclo, sem intervenção manual.
+        Os <strong>tempos</strong> vêm da pipeline da Camada 1 (separador Pipelines) —
+        sem pipeline, a extracção não arranca.
       </p>
 
       <div class="list">
@@ -40,7 +42,6 @@ import { ExtractionConfig } from '../../models';
             <span class="badge" [class.on]="c.active">{{ c.active ? 'activo' : 'inactivo' }}</span>
           </div>
           <div class="meta">
-            <span><i class="material-icons">timer</i> {{ c.extractionDurationMs }}ms + {{ c.transportDurationMs }}ms</span>
             <span><i class="material-icons">flag</i> {{ c.targetProduct }} / {{ c.targetComponent }}</span>
             <span><i class="material-icons">factory</i> {{ c.factory }}</span>
           </div>
@@ -56,8 +57,6 @@ import { ExtractionConfig } from '../../models';
         <label>Tipo <input name="materialType" [(ngModel)]="draft.materialType" required /></label>
         <label>Qtd/ciclo <input type="number" name="quantityPerCycle" [(ngModel)]="draft.quantityPerCycle" /></label>
         <label>Unidade <input name="unit" [(ngModel)]="draft.unit" /></label>
-        <label>Extracção (ms) <input type="number" name="extractionDurationMs" [(ngModel)]="draft.extractionDurationMs" /></label>
-        <label>Transporte (ms) <input type="number" name="transportDurationMs" [(ngModel)]="draft.transportDurationMs" /></label>
         <label>Fábrica <input name="factory" [(ngModel)]="draft.factory" /></label>
         <label>Produto alvo <input name="targetProduct" [(ngModel)]="draft.targetProduct" placeholder="CAR" /></label>
         <label>Componente alvo <input name="targetComponent" [(ngModel)]="draft.targetComponent" placeholder="ENGINE" /></label>
@@ -161,8 +160,6 @@ export class ExtractionConfigComponent implements OnInit {
       materialType: '',
       quantityPerCycle: 1,
       unit: 'kg',
-      extractionDurationMs: 10000,
-      transportDurationMs: 5000,
       factory: 'mining-site-alpha',
       targetProduct: '',
       targetComponent: '',

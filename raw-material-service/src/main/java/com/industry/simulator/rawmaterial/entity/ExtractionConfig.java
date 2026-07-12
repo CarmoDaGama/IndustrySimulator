@@ -3,10 +3,9 @@ package com.industry.simulator.rawmaterial.entity;
 import jakarta.persistence.*;
 
 /**
- * Configuração genérica de um recurso extraído autonomamente pela Camada 1.
- * Nada de nomes/tempos fixos no código: os Workers escolhem entre as
- * configurações activas desta tabela para decidir o que extrair e quanto
- * tempo simular (portal de configurações).
+ * Configuração genérica de um recurso extraído autonomamente pela Camada 1:
+ * o QUE extrair (material, quantidade, fábrica e purpose). Os TEMPOS vêm da
+ * pipeline desta camada, tal como nas restantes — uma única fonte de verdade.
  */
 @Entity
 @Table(name = "extraction_config")
@@ -20,8 +19,6 @@ public class ExtractionConfig {
     private String materialType;
     private double quantityPerCycle = 1.0;
     private String unit = "unit";
-    private long extractionDurationMs = 10000;
-    private long transportDurationMs = 5000;
     private String factory = "mining-site-alpha";
 
     // Contrato de dados obrigatório (Secção 7): finalidade do recurso
@@ -41,10 +38,6 @@ public class ExtractionConfig {
     public void setQuantityPerCycle(double quantityPerCycle) { this.quantityPerCycle = quantityPerCycle; }
     public String getUnit() { return unit; }
     public void setUnit(String unit) { this.unit = unit; }
-    public long getExtractionDurationMs() { return extractionDurationMs; }
-    public void setExtractionDurationMs(long extractionDurationMs) { this.extractionDurationMs = extractionDurationMs; }
-    public long getTransportDurationMs() { return transportDurationMs; }
-    public void setTransportDurationMs(long transportDurationMs) { this.transportDurationMs = transportDurationMs; }
     public String getFactory() { return factory; }
     public void setFactory(String factory) { this.factory = factory; }
     public String getTargetProduct() { return targetProduct; }

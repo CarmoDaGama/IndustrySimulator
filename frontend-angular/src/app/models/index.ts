@@ -43,8 +43,6 @@ export interface ExtractionConfig {
   materialType: string;
   quantityPerCycle: number;
   unit: string;
-  extractionDurationMs: number;
-  transportDurationMs: number;
   factory: string;
   targetProduct: string;
   targetComponent: string;

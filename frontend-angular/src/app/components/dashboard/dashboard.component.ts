@@ -8,6 +8,7 @@ import { EventsMonitorComponent } from '../events-monitor/events-monitor.compone
 import { WorkerConfigComponent } from '../worker-config/worker-config.component';
 import { ExtractionConfigComponent } from '../extraction-config/extraction-config.component';
 import { BomConfigComponent } from '../bom-config/bom-config.component';
+import { ProcessMonitorComponent } from '../process-monitor/process-monitor.component';
 import { ApiService } from '../../services/api.service';
 import { EventService } from '../../services/event.service';
 import { WebSocketService } from '../../services/websocket.service';
@@ -29,6 +30,7 @@ import { WebSocketService } from '../../services/websocket.service';
     WorkerConfigComponent,
     ExtractionConfigComponent,
     BomConfigComponent,
+    ProcessMonitorComponent,
   ],
   template: `
     <div class="dashboard-wrapper">
@@ -103,6 +105,8 @@ import { WebSocketService } from '../../services/websocket.service';
 
         <!-- Monitoring -->
         <div *ngIf="activeTab() === 'monitoring'" class="pane animate-slide-up">
+          <app-process-monitor class="mb-3"></app-process-monitor>
+
           <div class="grid-layout">
             <div class="col-main">
               <app-events-monitor></app-events-monitor>
@@ -142,6 +146,7 @@ import { WebSocketService } from '../../services/websocket.service';
   styles: [`
     .dashboard-wrapper { display: flex; flex-direction: column; gap: 2rem; }
     .settings-stack { display: flex; flex-direction: column; gap: 1.5rem; }
+    app-process-monitor { display: block; margin-bottom: 1.5rem; }
     .stats-bar { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1.5rem; }
     .stat-card { padding: 1.5rem; border-radius: 1rem; display: flex; align-items: center; gap: 1.5rem; transition: var(--transition); }
     .stat-icon { width: 56px; height: 56px; border-radius: 12px; display: flex; align-items: center; justify-content: center; background: rgba(255, 255, 255, 0.05); color: var(--text-muted); }

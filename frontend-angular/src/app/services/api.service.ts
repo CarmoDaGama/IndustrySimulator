@@ -13,6 +13,7 @@ import {
   ServiceKey,
   PipelineStep,
   WorkerPoolStatus,
+  WorkerActivity,
   ExtractionConfig,
   CompatibleMaterial,
 } from '../models';
@@ -159,6 +160,13 @@ export class ApiService {
   getWorkers(service: ServiceKey): Observable<WorkerPoolStatus> {
     return this.http
       .get<WorkerPoolStatus>(`${this.serviceRoot(service)}/workers`)
+      .pipe(catchError((error) => this.handleError(error)));
+  }
+
+  /** Etapa que cada Worker está a executar neste instante. */
+  getWorkerActivity(service: ServiceKey): Observable<WorkerActivity[]> {
+    return this.http
+      .get<WorkerActivity[]>(`${this.serviceRoot(service)}/workers/activity`)
       .pipe(catchError((error) => this.handleError(error)));
   }
 

@@ -5,6 +5,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import com.industry.simulator.common.worker.WorkerActivity;
+
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -32,5 +35,11 @@ public class WorkerPoolController {
         int workerCount = body.getOrDefault("workerCount", 1);
         int applied = workerPoolService.resize(workerCount);
         return ResponseEntity.ok(Map.of("workerCount", applied));
+    }
+
+    /** Estado ao vivo de cada Worker: etapa em execução, progresso e lote. */
+    @GetMapping("/activity")
+    public ResponseEntity<List<WorkerActivity>> activity() {
+        return ResponseEntity.ok(workerPoolService.getActivities());
     }
 }

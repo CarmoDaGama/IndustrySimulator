@@ -12,6 +12,7 @@ import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 
 /**
  * Pool de Workers genérico e reutilizável, partilhado por todos os
@@ -24,8 +25,9 @@ import java.util.function.Supplier;
  *   <li>Bloqueia automaticamente em {@link BlockingQueue#take()} enquanto os
  *       recursos necessários não estiverem disponíveis ("Bloqueio por
  *       Escassez").</li>
- *   <li>Simula o tempo de produção configurado (lido em tempo real de uma
- *       fonte externa, tipicamente uma tabela de configuração em BD).</li>
+ *   <li>Executa a pipeline <b>etapa a etapa</b>, respeitando a duração de cada
+ *       uma (lida em tempo real da configuração em BD) e publicando o seu
+ *       estado, para que o portal possa mostrar a etapa em execução.</li>
  *   <li>Produz 1 unidade de saída e entrega-a ao consumidor fornecido
  *       (normalmente publica um evento Kafka).</li>
  * </ol>
@@ -43,10 +45,11 @@ public class TwoToOneWorkerPool<IN, OUT> {
 
     private final String namePrefix;
     private final int inputsPerOutput;
-    private final Supplier<Long> durationMsSupplier;
+    private final Supplier<List<StepSpec>> stepsSupplier;
     private final Function<List<IN>, OUT> producer;
     private final Consumer<OUT> onProduced;
     private final BiConsumer<Exception, List<IN>> onError;
+    private final Function<IN, String> batchIdOf;
 
     private final BlockingQueue<IN> inputQueue = new LinkedBlockingQueue<>();
     private final List<Worker> workers = new CopyOnWriteArrayList<>();
@@ -54,16 +57,18 @@ public class TwoToOneWorkerPool<IN, OUT> {
 
     public TwoToOneWorkerPool(String namePrefix,
                                int inputsPerOutput,
-                               Supplier<Long> durationMsSupplier,
+                               Supplier<List<StepSpec>> stepsSupplier,
                                Function<List<IN>, OUT> producer,
                                Consumer<OUT> onProduced,
-                               BiConsumer<Exception, List<IN>> onError) {
+                               BiConsumer<Exception, List<IN>> onError,
+                               Function<IN, String> batchIdOf) {
         this.namePrefix = namePrefix;
         this.inputsPerOutput = Math.max(1, inputsPerOutput);
-        this.durationMsSupplier = durationMsSupplier;
+        this.stepsSupplier = stepsSupplier;
         this.producer = producer;
         this.onProduced = onProduced;
         this.onError = onError;
+        this.batchIdOf = batchIdOf;
     }
 
     /** Entrega uma unidade da camada anterior à fila interna do pool. */
@@ -77,6 +82,11 @@ public class TwoToOneWorkerPool<IN, OUT> {
 
     public int getWorkerCount() {
         return workers.size();
+    }
+
+    /** Estado actual de cada Worker — alimenta a monitorização do portal. */
+    public List<WorkerActivity> getActivities() {
+        return workers.stream().map(Worker::snapshot).collect(Collectors.toList());
     }
 
     /** Ajusta o número de Workers (Threads) activos para o valor pretendido. */
@@ -104,6 +114,15 @@ public class TwoToOneWorkerPool<IN, OUT> {
     private class Worker extends Thread {
         private volatile boolean active = true;
 
+        // Estado observável pelo portal (escrito só por esta Thread, lido por outras).
+        private volatile WorkerActivity.State state = WorkerActivity.State.BLOCKED;
+        private volatile String currentStep = null;
+        private volatile int stepIndex = 0;
+        private volatile int totalSteps = 0;
+        private volatile long stepDurationMs = 0;
+        private volatile long stepStartedAt = 0;
+        private volatile String batchIds = null;
+
         Worker(String name) {
             super(name);
             setDaemon(true);
@@ -114,6 +133,24 @@ public class TwoToOneWorkerPool<IN, OUT> {
             this.interrupt();
         }
 
+        WorkerActivity snapshot() {
+            long elapsed = state == WorkerActivity.State.RUNNING && stepStartedAt > 0
+                    ? System.currentTimeMillis() - stepStartedAt
+                    : 0;
+            return new WorkerActivity(getName(), state, currentStep, stepIndex,
+                    totalSteps, stepDurationMs, Math.min(elapsed, stepDurationMs), batchIds);
+        }
+
+        private void markBlocked() {
+            state = WorkerActivity.State.BLOCKED;
+            currentStep = null;
+            stepIndex = 0;
+            totalSteps = 0;
+            stepDurationMs = 0;
+            stepStartedAt = 0;
+            batchIds = null;
+        }
+
         @Override
         public void run() {
             log.info("[{}] iniciado", getName());
@@ -122,18 +159,37 @@ public class TwoToOneWorkerPool<IN, OUT> {
                 try {
                     // Bloqueio por escassez: espera até existirem 'inputsPerOutput'
                     // unidades disponíveis da camada anterior.
+                    markBlocked();
                     for (int i = 0; i < inputsPerOutput; i++) {
                         IN item = inputQueue.take();
                         batch.add(item);
                     }
 
-                    long durationMs = durationMsSupplier.get();
-                    if (durationMs > 0) {
-                        Thread.sleep(durationMs);
+                    batchIds = batch.stream().map(batchIdOf).collect(Collectors.joining(","));
+
+                    // Executa a pipeline etapa a etapa, para que cada uma seja
+                    // observável enquanto decorre.
+                    List<StepSpec> steps = stepsSupplier.get();
+                    totalSteps = steps.size();
+                    for (int i = 0; i < steps.size(); i++) {
+                        StepSpec step = steps.get(i);
+                        state = WorkerActivity.State.RUNNING;
+                        currentStep = step.getName();
+                        stepIndex = i + 1;
+                        stepDurationMs = step.getDurationMs();
+                        stepStartedAt = System.currentTimeMillis();
+
+                        log.info("[{}] etapa {}/{} '{}' ({}ms) lote={}",
+                                getName(), stepIndex, totalSteps, currentStep, stepDurationMs, batchIds);
+
+                        if (step.getDurationMs() > 0) {
+                            Thread.sleep(step.getDurationMs());
+                        }
                     }
 
                     OUT out = producer.apply(batch);
                     onProduced.accept(out);
+                    markBlocked();
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
                     if (!active) {
@@ -145,6 +201,7 @@ public class TwoToOneWorkerPool<IN, OUT> {
                     if (onError != null) {
                         onError.accept(ex, batch);
                     }
+                    markBlocked();
                 }
             }
         }

@@ -3,6 +3,8 @@ package com.industry.simulator.rawmaterial.service;
 import com.industry.simulator.common.events.RawMaterialProducedEvent;
 import com.industry.simulator.common.model.Component;
 import com.industry.simulator.common.worker.ContinuousWorkerPool;
+import com.industry.simulator.common.worker.StepSpec;
+import com.industry.simulator.common.worker.WorkerActivity;
 import com.industry.simulator.rawmaterial.entity.ExtractionConfig;
 import com.industry.simulator.rawmaterial.entity.RawMaterial;
 import com.industry.simulator.rawmaterial.entity.WorkerPoolConfig;
@@ -51,7 +53,7 @@ public class RawMaterialWorkerPoolService {
     public void init() {
         pool = new ContinuousWorkerPool<>(
                 "extraction",
-                this::extractOneCycle,
+                this::nextCycle,
                 producer::publishRawMaterialProduced,
                 ex -> log.error("Falha no ciclo de extracção: {}", ex.getMessage(), ex)
         );
@@ -59,6 +61,11 @@ public class RawMaterialWorkerPoolService {
     }
 
     public int getWorkerCount() { return pool.getWorkerCount(); }
+
+    /** Estado ao vivo de cada Worker (etapa em execução) para o portal. */
+    public List<WorkerActivity> getActivities() {
+        return pool.getActivities();
+    }
 
     public synchronized int resize(int workerCount) {
         WorkerPoolConfig config = workerPoolConfigRepository.findById(1L).orElseGet(WorkerPoolConfig::new);
@@ -79,25 +86,30 @@ public class RawMaterialWorkerPoolService {
     }
 
     /**
-     * Um ciclo completo de extracção + transporte para uma configuração
-     * activa escolhida aleatoriamente. Devolve {@code null} (sem bloquear a
-     * Thread para sempre) quando ainda não existe nenhuma configuração,
-     * permitindo ao {@link ContinuousWorkerPool} tentar de novo em breve.
+     * Prepara o próximo ciclo de extracção para uma configuração activa
+     * escolhida aleatoriamente: declara as etapas (EXTRACTION, TRANSPORT) que o
+     * pool executa e cronometra uma a uma, e o item a produzir no fim.
+     * Devolve {@code null} quando ainda não existe nenhuma configuração activa,
+     * deixando o {@link ContinuousWorkerPool} tentar de novo em breve.
      */
-    private RawMaterialProducedEvent extractOneCycle() throws InterruptedException {
+    private ContinuousWorkerPool.Cycle<RawMaterialProducedEvent> nextCycle() {
         List<ExtractionConfig> configs = extractionConfigRepository.findByActiveTrue();
         if (configs.isEmpty()) {
             return null;
         }
         ExtractionConfig config = configs.get(ThreadLocalRandom.current().nextInt(configs.size()));
-
         String batchId = UUID.randomUUID().toString();
-        log.info("{} | raw-material-service | Iniciando EXTRACTION de {} ({}ms)", batchId, config.getMaterialName(), config.getExtractionDurationMs());
-        Thread.sleep(config.getExtractionDurationMs());
 
-        log.info("{} | raw-material-service | Iniciando TRANSPORT ({}ms)", batchId, config.getTransportDurationMs());
-        Thread.sleep(config.getTransportDurationMs());
+        List<StepSpec> steps = List.of(
+                new StepSpec("EXTRACTION", config.getExtractionDurationMs()),
+                new StepSpec("TRANSPORT", config.getTransportDurationMs())
+        );
 
+        return new ContinuousWorkerPool.Cycle<>(steps, batchId, () -> buildEvent(config, batchId));
+    }
+
+    /** Persiste o material extraído e constrói o evento (após as etapas correrem). */
+    private RawMaterialProducedEvent buildEvent(ExtractionConfig config, String batchId) {
         RawMaterial material = new RawMaterial();
         material.setMaterialName(config.getMaterialName());
         material.setMaterialType(config.getMaterialType());

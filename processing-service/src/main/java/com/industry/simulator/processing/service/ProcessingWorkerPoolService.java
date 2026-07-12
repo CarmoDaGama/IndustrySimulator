@@ -3,7 +3,9 @@ package com.industry.simulator.processing.service;
 import com.industry.simulator.common.events.ProcessingCompletedEvent;
 import com.industry.simulator.common.events.RawMaterialProducedEvent;
 import com.industry.simulator.common.model.Component;
+import com.industry.simulator.common.worker.StepSpec;
 import com.industry.simulator.common.worker.TwoToOneWorkerPool;
+import com.industry.simulator.common.worker.WorkerActivity;
 import com.industry.simulator.processing.entity.ProcessedMaterial;
 import com.industry.simulator.processing.entity.WorkerPoolConfig;
 import com.industry.simulator.processing.kafka.ProcessingProducer;
@@ -53,12 +55,18 @@ public class ProcessingWorkerPoolService {
         pool = new TwoToOneWorkerPool<>(
                 "processing",
                 INPUTS_PER_OUTPUT,
-                this::currentDurationMs,
+                this::currentSteps,
                 this::produce,
                 producer::publishProcessingCompleted,
-                this::handleError
+                this::handleError,
+                RawMaterialProducedEvent::getBatchId
         );
         pool.resize(currentWorkerCount());
+    }
+
+    /** Estado ao vivo de cada Worker (etapa em execução) para o portal. */
+    public List<WorkerActivity> getActivities() {
+        return pool.getActivities();
     }
 
     public void submit(RawMaterialProducedEvent event) {
@@ -92,12 +100,23 @@ public class ProcessingWorkerPoolService {
                 });
     }
 
-    /** Duração da pipeline lida em tempo real da BD (portal de configurações). */
-    private long currentDurationMs() {
+    /**
+     * Etapas da pipeline lidas em tempo real da BD (portal de configurações).
+     * Os Workers executam-nas uma a uma, tornando cada etapa observável.
+     */
+    private List<StepSpec> currentSteps() {
         List<com.industry.simulator.processing.entity.PipelineStep> steps =
                 pipelineRepository.findAllByIsActiveOrderByStepOrderAsc(true);
-        long total = steps.stream().mapToLong(com.industry.simulator.processing.entity.PipelineStep::getDurationMs).sum();
-        return total > 0 ? total : 2000L;
+        if (steps.isEmpty()) {
+            return List.of(new StepSpec("PROCESSING", 2000L));
+        }
+        return steps.stream()
+                .map(s -> new StepSpec(s.getStepName(), s.getDurationMs()))
+                .collect(Collectors.toList());
+    }
+
+    private long currentDurationMs() {
+        return currentSteps().stream().mapToLong(StepSpec::getDurationMs).sum();
     }
 
     private ProcessingCompletedEvent produce(List<RawMaterialProducedEvent> batch) {

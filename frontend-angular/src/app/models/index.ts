@@ -24,6 +24,19 @@ export interface WorkerPoolStatus {
   queueSize?: number;
 }
 
+/** O que um Worker está a fazer neste instante (etapa em execução). */
+export interface WorkerActivity {
+  workerName: string;
+  /** BLOCKED = à espera de insumos da camada anterior (bloqueio por escassez). */
+  state: 'RUNNING' | 'BLOCKED' | 'IDLE';
+  currentStep: string | null;
+  stepIndex: number;
+  totalSteps: number;
+  stepDurationMs: number;
+  stepElapsedMs: number;
+  batchIds: string | null;
+}
+
 /** Config genérica do recurso extraído autonomamente pela Camada 1. */
 export interface ExtractionConfig {
   id?: number;

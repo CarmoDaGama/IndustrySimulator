@@ -12,7 +12,9 @@ import com.industry.simulator.assembly.repository.WorkerPoolConfigRepository;
 import com.industry.simulator.common.events.ComponentAssembledEvent;
 import com.industry.simulator.common.events.InventoryUpdatedEvent;
 import com.industry.simulator.common.events.ProductAssembledEvent;
+import com.industry.simulator.common.worker.StepSpec;
 import com.industry.simulator.common.worker.TwoToOneWorkerPool;
+import com.industry.simulator.common.worker.WorkerActivity;
 import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -58,12 +60,18 @@ public class AssemblyWorkerPoolService {
         pool = new TwoToOneWorkerPool<>(
                 "assembly",
                 INPUTS_PER_OUTPUT,
-                this::currentDurationMs,
+                this::currentSteps,
                 this::produce,
                 this::publishAndUpdateInventory,
-                this::handleError
+                this::handleError,
+                ComponentAssembledEvent::getBatchId
         );
         pool.resize(currentWorkerCount());
+    }
+
+    /** Estado ao vivo de cada Worker (etapa em execução) para o portal. */
+    public List<WorkerActivity> getActivities() {
+        return pool.getActivities();
     }
 
     public void submit(ComponentAssembledEvent event) {
@@ -91,10 +99,19 @@ public class AssemblyWorkerPoolService {
                 });
     }
 
-    private long currentDurationMs() {
+    /** Etapas lidas em tempo real da BD; executadas uma a uma pelos Workers. */
+    private List<StepSpec> currentSteps() {
         List<PipelineStep> steps = pipelineRepository.findAllByIsActiveOrderByStepOrderAsc(true);
-        long total = steps.stream().mapToLong(PipelineStep::getDurationMs).sum();
-        return total > 0 ? total : DEFAULT_DURATION_MS;
+        if (steps.isEmpty()) {
+            return List.of(new StepSpec("FINAL_ASSEMBLY", DEFAULT_DURATION_MS));
+        }
+        return steps.stream()
+                .map(s -> new StepSpec(s.getStepName(), s.getDurationMs()))
+                .collect(Collectors.toList());
+    }
+
+    private long currentDurationMs() {
+        return currentSteps().stream().mapToLong(StepSpec::getDurationMs).sum();
     }
 
     private ProductAssembledEvent produce(List<ComponentAssembledEvent> batch) {

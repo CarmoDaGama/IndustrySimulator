@@ -2,7 +2,6 @@ import { Component, OnInit, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { NgIf, NgFor, DatePipe } from '@angular/common';
 import { PipelineConfigComponent } from '../pipeline-config/pipeline-config.component';
-import { OrderFormComponent } from '../order-form/order-form.component';
 import { InventoryMonitorComponent } from '../inventory-monitor/inventory-monitor.component';
 import { EventsMonitorComponent } from '../events-monitor/events-monitor.component';
 import { WorkerConfigComponent } from '../worker-config/worker-config.component';
@@ -26,7 +25,6 @@ import { WebSocketService } from '../../services/websocket.service';
     CommonModule,
     NgIf, NgFor, DatePipe,
     PipelineConfigComponent,
-    OrderFormComponent,
     InventoryMonitorComponent,
     EventsMonitorComponent,
     WorkerConfigComponent,
@@ -90,12 +88,9 @@ import { WebSocketService } from '../../services/websocket.service';
 
       <!-- Content Area -->
       <div class="dashboard-content">
-        <!-- Operations -->
+        <!-- Pipelines -->
         <div *ngIf="activeTab() === 'configuration'" class="pane animate-slide-up">
-          <div class="grid-2">
-            <app-pipeline-config></app-pipeline-config>
-            <app-order-form></app-order-form>
-          </div>
+          <app-pipeline-config></app-pipeline-config>
         </div>
 
         <!-- Portal de Configurações (Secção 6 do enunciado) -->
@@ -136,15 +131,6 @@ import { WebSocketService } from '../../services/websocket.service';
               </div>
             </div>
           </div>
-        </div>
-
-        <!-- Analytics -->
-        <div *ngIf="activeTab() === 'analytics'" class="pane animate-slide-up">
-           <div class="placeholder-card glass">
-              <i class="material-icons">analytics</i>
-              <h3>Módulo de Analytics em v2.1</h3>
-              <p>O monitoramento avançado de latência e gargalos está em desenvolvimento.</p>
-           </div>
         </div>
       </div>
     </div>
@@ -199,10 +185,9 @@ export class DashboardComponent implements OnInit {
   isWsConnected = signal(false);
   
   tabs = [
-    { id: 'configuration', label: 'Operações', icon: 'precision_manufacturing' },
+    { id: 'configuration', label: 'Pipelines', icon: 'precision_manufacturing' },
     { id: 'settings', label: 'Configurações', icon: 'tune' },
     { id: 'monitoring', label: 'Live Monitor', icon: 'sensors' },
-    { id: 'analytics', label: 'Estatísticas', icon: 'insights' },
   ];
 
   private startTime = new Date();

@@ -270,6 +270,13 @@ export class ApiService {
       );
   }
 
+  /** O que cada cliente fictício está a fazer neste instante. */
+  getCustomerActivity(): Observable<WorkerActivity[]> {
+    return this.http
+      .get<WorkerActivity[]>(`${this.assemblyUrl}/market/customers/activity`)
+      .pipe(catchError((error) => this.handleError(error)));
+  }
+
   /** Produtos que a fábrica sabe montar (vêm das regras da Camada 4). */
   getProductCatalog(): Observable<string[]> {
     return this.http

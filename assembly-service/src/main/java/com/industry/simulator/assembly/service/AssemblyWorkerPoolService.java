@@ -134,9 +134,6 @@ public class AssemblyWorkerPoolService {
 
     private List<StepSpec> currentSteps() {
         List<PipelineStep> steps = pipelineRepository.findAllByIsActiveOrderByStepOrderAsc(true);
-        if (steps.isEmpty()) {
-            return List.of(new StepSpec("FINAL_ASSEMBLY", 4000L));
-        }
         return steps.stream()
                 .map(s -> new StepSpec(s.getStepName(), s.getDurationMs()))
                 .collect(Collectors.toList());

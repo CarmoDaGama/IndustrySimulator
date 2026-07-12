@@ -227,13 +227,18 @@ public class ProductionWorkerPool<IN, OUT> {
         private Batch awaitBatch() throws InterruptedException {
             while (active) {
                 List<ProductionSpec> specs = specsSupplier.get();
+                // Sem pipeline configurada não há tempos: a camada não produz.
+                // Produzir aqui seria produção instantânea, que o enunciado proíbe.
+                boolean hasPipeline = !stepsSupplier.get().isEmpty();
 
                 lock.lock();
                 try {
-                    for (ProductionSpec spec : specs) {
-                        Batch batch = tryTake(spec);
-                        if (batch != null) {
-                            return batch;
+                    if (hasPipeline) {
+                        for (ProductionSpec spec : specs) {
+                            Batch batch = tryTake(spec);
+                            if (batch != null) {
+                                return batch;
+                            }
                         }
                     }
                     markBlocked();

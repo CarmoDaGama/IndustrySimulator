@@ -120,9 +120,6 @@ public class ComponentWorkerPoolService {
 
     private List<StepSpec> currentSteps() {
         List<PipelineStep> steps = pipelineRepository.findAllByIsActiveOrderByStepOrderAsc(true);
-        if (steps.isEmpty()) {
-            return List.of(new StepSpec("ASSEMBLY", 3000L));
-        }
         return steps.stream()
                 .map(s -> new StepSpec(s.getStepName(), s.getDurationMs()))
                 .collect(Collectors.toList());

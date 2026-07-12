@@ -10,7 +10,7 @@ pom.xml.next
 release.properties
 dependency-reduced-pom.xml
 .flattened-pom.xml
-
+.claude/
 # IDE
 .idea/
 .vscode/

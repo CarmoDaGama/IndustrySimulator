@@ -1,16 +1,19 @@
 package com.industry.simulator.assembly.controller;
 
-import com.industry.simulator.assembly.dto.MarketOrderRequest;
 import com.industry.simulator.assembly.dto.MarketOrderResponse;
 import com.industry.simulator.assembly.service.MarketOrderService;
-import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
+/**
+ * Apenas leitura/monitorização. As encomendas são geradas automaticamente
+ * pelos clientes fictícios da Camada 6 ({@code CustomerSimulatorService}) —
+ * não existe forma de criar uma encomenda por REST, o que mantém o HTTP
+ * restrito a monitorização, logs e configurações.
+ */
 @RestController
 @RequestMapping("/api/market-orders")
 @CrossOrigin("*")
@@ -18,12 +21,6 @@ public class MarketOrderController {
 
     @Autowired
     private MarketOrderService service;
-
-    @PostMapping
-    public ResponseEntity<MarketOrderResponse> createOrder(@Valid @RequestBody MarketOrderRequest request) {
-        MarketOrderResponse response = service.createOrder(request);
-        return ResponseEntity.status(HttpStatus.CREATED).body(response);
-    }
 
     @GetMapping
     public ResponseEntity<List<MarketOrderResponse>> getAllOrders() {

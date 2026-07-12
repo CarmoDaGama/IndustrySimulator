@@ -10,6 +10,17 @@ interface LayerView extends ServiceInfo {
 }
 
 /**
+ * A Camada 6 (Mercado) não é um microserviço à parte, mas os seus clientes
+ * fictícios também são Threads — por isso aparecem na cadeia, no fim.
+ */
+const MARKET_LAYER: ServiceInfo = {
+  key: 'assembly',
+  label: 'Clientes',
+  layer: 'Camada 6',
+  hasPipeline: false,
+};
+
+/**
  * Monitorização de processos: mostra, em tempo real, a etapa que cada Worker
  * (Thread) de cada camada está a executar, com o progresso da etapa. Torna
  * visíveis os dois comportamentos centrais do simulador — a pipeline com
@@ -46,7 +57,7 @@ interface LayerView extends ServiceInfo {
             <div *ngIf="layer.offline" class="offline-msg">serviço indisponível</div>
 
             <div *ngIf="!layer.offline && layer.workers.length === 0" class="offline-msg">
-              sem workers activos
+              {{ isMarket(layer) ? 'simulação de clientes desligada' : 'sem workers activos' }}
             </div>
 
             <div *ngFor="let w of layer.workers" class="worker" [class]="w.state.toLowerCase()">
@@ -127,7 +138,7 @@ export class ProcessMonitorComponent implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     this.layers.set(
-      SERVICES.map((s) => ({ ...s, workers: [], queueSize: null, offline: false }))
+      [...SERVICES, MARKET_LAYER].map((s) => ({ ...s, workers: [], queueSize: null, offline: false }))
     );
     this.poll();
     // 1s: rápido o suficiente para ver a barra de progresso avançar.
@@ -140,16 +151,28 @@ export class ProcessMonitorComponent implements OnInit, OnDestroy {
 
   private poll(): void {
     for (const layer of this.layers()) {
+      if (this.isMarket(layer)) {
+        this.api.getCustomerActivity().subscribe({
+          next: (workers) => this.patchLayer(layer, { workers: workers || [], offline: false }),
+          error: () => this.patchLayer(layer, { offline: true, workers: [] }),
+        });
+        continue;
+      }
+
       this.api.getWorkerActivity(layer.key).subscribe({
-        next: (workers) => this.patch(layer.key, { workers: workers || [], offline: false }),
-        error: () => this.patch(layer.key, { offline: true, workers: [] }),
+        next: (workers) => this.patchLayer(layer, { workers: workers || [], offline: false }),
+        error: () => this.patchLayer(layer, { offline: true, workers: [] }),
       });
 
       this.api.getWorkers(layer.key).subscribe({
-        next: (status) => this.patch(layer.key, { queueSize: status.queueSize ?? null }),
+        next: (status) => this.patchLayer(layer, { queueSize: status.queueSize ?? null }),
         error: () => {},
       });
     }
+  }
+
+  isMarket(layer: LayerView): boolean {
+    return layer.layer === MARKET_LAYER.layer;
   }
 
   progress(w: WorkerActivity): number {
@@ -170,7 +193,7 @@ export class ProcessMonitorComponent implements OnInit, OnDestroy {
       .join(' + ');
   }
 
-  private patch(key: ServiceKey, changes: Partial<LayerView>): void {
-    this.layers.update((ls) => ls.map((l) => (l.key === key ? { ...l, ...changes } : l)));
+  private patchLayer(target: LayerView, changes: Partial<LayerView>): void {
+    this.layers.update((ls) => ls.map((l) => (l.layer === target.layer ? { ...l, ...changes } : l)));
   }
 }

@@ -121,12 +121,13 @@ public class ProcessingWorkerPoolService {
         );
     }
 
-    /** Etapas da pipeline, executadas uma a uma pelos Workers. */
+    /**
+     * Etapas da pipeline, executadas uma a uma pelos Workers. Se a pipeline
+     * não estiver configurada, devolve uma lista vazia e a camada não produz —
+     * os tempos vêm sempre da BD, nunca do código.
+     */
     private List<StepSpec> currentSteps() {
         List<PipelineStep> steps = pipelineRepository.findAllByIsActiveOrderByStepOrderAsc(true);
-        if (steps.isEmpty()) {
-            return List.of(new StepSpec("REFINING", 2000L));
-        }
         return steps.stream()
                 .map(s -> new StepSpec(s.getStepName(), s.getDurationMs()))
                 .collect(Collectors.toList());

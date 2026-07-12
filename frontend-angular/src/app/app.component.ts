@@ -17,7 +17,7 @@ import { AuthService } from './services/auth.service';
       <header class="app-header">
         <div class="header-content">
           <h1><i class="material-icons">factory</i> Simulador Industrial</h1>
-          <p class="subtitle">Sistema de gestão da linha de produção</p>
+          <p class="subtitle">Cadeia industrial distribuída — da extracção à venda</p>
         </div>
         <div class="header-status">
           <span class="status-badge" [class.online]="isOnline()">

@@ -64,7 +64,7 @@ import { PipelineStep, SERVICES, ServiceInfo, ServiceKey } from '../../models';
           Tempo Total: <strong>{{ totalDuration() }}ms</strong>
         </div>
         <button (click)="savePipeline()" class="btn btn-primary" [disabled]="isSaving()">
-          <i class="material-icons">cloud_upload</i> Salvar
+          <i class="material-icons">cloud_upload</i> Guardar
         </button>
       </div>
 
@@ -140,9 +140,9 @@ export class PipelineConfigComponent implements OnInit {
     this.apiService.savePipelineFor(this.selected(), this.steps()).subscribe({
       next: (s) => {
         this.steps.set(s);
-        this.showMsg('Configuração salva!');
+        this.showMsg('Configuração guardada!');
       },
-      error: () => this.showMsg('Falha ao salvar', true)
+      error: () => this.showMsg('Falha ao guardar', true)
     });
   }
 

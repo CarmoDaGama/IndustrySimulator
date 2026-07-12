@@ -11,7 +11,7 @@ import { ProductionRequest, RawMaterial } from '../../models';
   template: `
     <div class="card glass animate-fade-in">
       <div class="card-header">
-        <h3><i class="material-icons">add_shopping_cart</i> Lançar Ordem</h3>
+        <h3><i class="material-icons">add_shopping_cart</i> Lançar Encomenda</h3>
       </div>
 
       <form (ngSubmit)="submit()" class="order-form">
@@ -24,10 +24,10 @@ import { ProductionRequest, RawMaterial } from '../../models';
           <div class="field">
             <label>Produto</label>
             <select [(ngModel)]="order.productType" name="type" class="input-field">
-              <option value="SEDAN">Sedã</option>
+              <option value="SEDAN">Sedan</option>
               <option value="SUV">SUV</option>
-              <option value="TRUCK">Caminhão</option>
-              <option value="SPORTS">Esportivo</option>
+              <option value="TRUCK">Camião</option>
+              <option value="SPORTS">Desportivo</option>
             </select>
           </div>
 
@@ -54,7 +54,7 @@ import { ProductionRequest, RawMaterial } from '../../models';
 
         <button type="submit" class="btn btn-primary full-width" [disabled]="loading()">
           <i class="material-icons">rocket_launch</i> 
-          {{ loading() ? 'Iniciando Cadeia de Produção...' : 'Lançar Ordem e Produzir' }}
+          {{ loading() ? 'Iniciando Cadeia de Produção...' : 'Lançar Encomenda e Produzir' }}
         </button>
       </form>
 
@@ -62,7 +62,7 @@ import { ProductionRequest, RawMaterial } from '../../models';
       <div *ngIf="lastId()" class="alert success animate-slide-up">
         <i class="material-icons">check_circle</i>
         <div>
-          <p>Ordem iniciada: <strong>{{ lastId() }}</strong></p>
+          <p>Encomenda iniciada: <strong>{{ lastId() }}</strong></p>
           <p class="small">Extração de matéria-prima iniciada automaticamente. Aguarde os eventos em 15s.</p>
         </div>
       </div>
@@ -126,7 +126,7 @@ export class OrderFormComponent {
         setTimeout(() => this.lastId.set(''), 15000);
       },
       error: (err) => {
-        this.showError(err.message || 'Falha ao criar ordem');
+        this.showError(err.message || 'Falha ao criar encomenda');
         this.loading.set(false);
       }
     });

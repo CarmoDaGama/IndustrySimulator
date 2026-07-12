@@ -131,15 +131,19 @@ export interface MarketOrder {
   requiredDeliveryDate: Date;
 }
 
+/** Stock global (Camada 5). Espelha o que o assembly-service devolve. */
 export interface InventoryItem {
   id: number;
-  productType: string;
-  componentType: string;
-  batchId: string;
+  productId: string;
+  productName: string;
+  /** Total produzido e armazenado. */
   quantity: number;
-  unit: string;
-  warehouseLocation: string;
-  status: string;
+  /** Reservado por encomendas já alocadas. */
+  reservedQuantity: number;
+  /** Livre para novas encomendas (quantity - reserved). */
+  availableQuantity: number;
+  location: string;
+  lastUpdated: string;
 }
 
 export interface AssembledProduct {

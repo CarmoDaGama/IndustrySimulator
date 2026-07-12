@@ -120,7 +120,7 @@ import { WebSocketService } from '../../services/websocket.service';
                 <div class="health-item">
                   <span class="label">WebSocket Status:</span>
                   <span class="value" [class.text-success]="isWsConnected()">
-                    {{ isWsConnected() ? 'Conectado' : 'Reconectando...' }}
+                    {{ isWsConnected() ? 'Conectado' : 'A reconectar...' }}
                   </span>
                 </div>
                 <div class="health-item">

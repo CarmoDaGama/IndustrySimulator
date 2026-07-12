@@ -9,16 +9,16 @@ interface EventMeta {
   label: string;
   layer: string;
   icon: string;
-  tone: 'raw' | 'processed' | 'component' | 'product' | 'stock';
+  tone: 't-raw' | 't-processed' | 't-component' | 't-product' | 't-stock';
 }
 
 const EVENT_META: Record<string, EventMeta> = {
-  RawMaterialProduced: { label: 'Matéria-prima extraída', layer: 'Camada 1', icon: 'landscape', tone: 'raw' },
-  ProcessingCompleted: { label: 'Material refinado', layer: 'Camada 2', icon: 'science', tone: 'processed' },
-  ComponentAssembled: { label: 'Componente produzido', layer: 'Camada 3', icon: 'memory', tone: 'component' },
-  ProductAssembled: { label: 'Produto montado', layer: 'Camada 4', icon: 'inventory', tone: 'product' },
-  InventoryUpdated: { label: 'Stock actualizado', layer: 'Camada 5', icon: 'warehouse', tone: 'stock' },
-  OrderStatusUpdate: { label: 'Encomenda actualizada', layer: 'Camada 6', icon: 'receipt_long', tone: 'stock' },
+  RawMaterialProduced: { label: 'Matéria-prima extraída', layer: 'Camada 1', icon: 'landscape', tone: 't-raw' },
+  ProcessingCompleted: { label: 'Material refinado', layer: 'Camada 2', icon: 'science', tone: 't-processed' },
+  ComponentAssembled: { label: 'Componente produzido', layer: 'Camada 3', icon: 'memory', tone: 't-component' },
+  ProductAssembled: { label: 'Produto montado', layer: 'Camada 4', icon: 'inventory', tone: 't-product' },
+  InventoryUpdated: { label: 'Stock actualizado', layer: 'Camada 5', icon: 'warehouse', tone: 't-stock' },
+  OrderStatusUpdate: { label: 'Encomenda actualizada', layer: 'Camada 6', icon: 'receipt_long', tone: 't-stock' },
 };
 
 /**
@@ -63,7 +63,7 @@ const EVENT_META: Record<string, EventMeta> = {
       </div>
 
       <div class="events-list">
-        <div *ngFor="let event of visible()" class="event" [ngClass]="meta(event.eventType).tone" [class.new]="isNew(event)">
+        <div *ngFor="let event of visible(); trackBy: trackById" class="event" [ngClass]="meta(event.eventType).tone" [class.new]="isNew(event)">
           <div class="ev-icon">
             <i class="material-icons">{{ meta(event.eventType).icon }}</i>
           </div>
@@ -92,7 +92,7 @@ const EVENT_META: Record<string, EventMeta> = {
             <button (click)="toggleRaw(event.eventId)" class="btn-link">
               {{ showRaw[event.eventId] ? 'Ocultar JSON' : 'Ver JSON do evento' }}
             </button>
-            <pre *ngIf="showRaw[event.eventId]" class="raw">{{ event.details | json }}</pre>
+            <pre *ngIf="showRaw[event.eventId]" class="json">{{ event.details | json }}</pre>
           </div>
         </div>
 
@@ -127,11 +127,11 @@ const EVENT_META: Record<string, EventMeta> = {
     .f-chip i { font-size: 0.9rem; }
     .f-chip .count { background: rgba(255,255,255,0.1); border-radius: 999px; padding: 0 0.35rem; font-size: 0.65rem; }
     .f-chip.on { border-color: currentColor; }
-    .raw { --tone: #a78bfa; }
-    .processed { --tone: #60a5fa; }
-    .component { --tone: #f472b6; }
-    .product { --tone: #34d399; }
-    .stock { --tone: #fbbf24; }
+    .t-raw { --tone: #a78bfa; }
+    .t-processed { --tone: #60a5fa; }
+    .t-component { --tone: #f472b6; }
+    .t-product { --tone: #34d399; }
+    .t-stock { --tone: #fbbf24; }
     .f-chip.on { color: var(--tone, #fff); background: rgba(255,255,255,0.08); }
 
     .events-list { display: flex; flex-direction: column; gap: 0.6rem; max-height: 600px; overflow-y: auto; padding-right: 0.4rem; }
@@ -160,7 +160,7 @@ const EVENT_META: Record<string, EventMeta> = {
     .tree-caption { font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-dim, #888); margin-bottom: 0.4rem; }
 
     .btn-link { background: none; border: none; color: var(--primary-light, #34d399); font-size: 0.68rem; cursor: pointer; padding: 0.4rem 0 0; text-decoration: underline; }
-    .raw { margin-top: 0.4rem; padding: 0.6rem; background: #000; border-radius: 0.4rem; font-size: 0.65rem; color: #6ee7b7; max-height: 220px; overflow: auto; max-width: 100%; white-space: pre-wrap; overflow-wrap: anywhere; }
+    .json { margin-top: 0.4rem; padding: 0.6rem; background: #000; border-radius: 0.4rem; font-size: 0.65rem; color: #6ee7b7; max-height: 220px; overflow: auto; max-width: 100%; white-space: pre-wrap; overflow-wrap: anywhere; }
 
     .empty { text-align: center; padding: 3rem 1rem; color: var(--text-muted); display: flex; flex-direction: column; align-items: center; gap: 0.6rem; }
     .note { font-size: 0.74rem; opacity: 0.75; max-width: 320px; line-height: 1.45; }
@@ -200,8 +200,12 @@ export class EventsMonitorComponent implements OnInit {
     });
   }
 
+  trackById(_i: number, e: KafkaEvent): string {
+    return e.eventId;
+  }
+
   meta(type: string): EventMeta {
-    return EVENT_META[type] ?? { label: type, layer: '—', icon: 'bolt', tone: 'stock' };
+    return EVENT_META[type] ?? { label: type, layer: '—', icon: 'bolt', tone: 't-stock' };
   }
 
   countOf(type: string): number {
@@ -232,9 +236,27 @@ export class EventsMonitorComponent implements OnInit {
       }
       case 'InventoryUpdated':
         return `${d.componentName ?? 'Produto'}: stock passou de ${d.quantityBefore ?? 0} para ${d.quantityAfter ?? 0}.`;
+      case 'OrderStatusUpdate': {
+        const estado = this.orderStatusLabel(d.status ?? event.status);
+        const cliente = d.customerName ? ` de ${d.customerName}` : '';
+        const prod = d.productType ? ` (${d.productType}${d.quantity ? ' ×' + d.quantity : ''})` : '';
+        return `Encomenda${cliente}${prod}: ${estado}.`;
+      }
       default:
-        return `Evento ${event.eventType}.`;
+        return d.message ?? `Evento ${event.eventType}.`;
     }
+  }
+
+  private orderStatusLabel(status: string): string {
+    const labels: Record<string, string> = {
+      PENDING: 'pendente, à espera de stock',
+      PROCESSING: 'em processamento',
+      ASSEMBLED: 'alocada (stock reservado)',
+      SHIPPED: 'expedida',
+      COMPLETED: 'concluída',
+      FAILED: 'falhou',
+    };
+    return labels[status] ?? (status || 'actualizada').toLowerCase();
   }
 
   /** O 'purpose' do enunciado (para que serve o item), quando existe. */

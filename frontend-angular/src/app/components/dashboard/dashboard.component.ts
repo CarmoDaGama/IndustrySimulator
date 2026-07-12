@@ -9,6 +9,8 @@ import { WorkerConfigComponent } from '../worker-config/worker-config.component'
 import { ExtractionConfigComponent } from '../extraction-config/extraction-config.component';
 import { BomConfigComponent } from '../bom-config/bom-config.component';
 import { ProcessMonitorComponent } from '../process-monitor/process-monitor.component';
+import { ProductionRulesComponent } from '../production-rules/production-rules.component';
+import { CustomerSimulatorComponent } from '../customer-simulator/customer-simulator.component';
 import { ApiService } from '../../services/api.service';
 import { EventService } from '../../services/event.service';
 import { WebSocketService } from '../../services/websocket.service';
@@ -31,6 +33,8 @@ import { WebSocketService } from '../../services/websocket.service';
     ExtractionConfigComponent,
     BomConfigComponent,
     ProcessMonitorComponent,
+    ProductionRulesComponent,
+    CustomerSimulatorComponent,
   ],
   template: `
     <div class="dashboard-wrapper">
@@ -97,8 +101,10 @@ import { WebSocketService } from '../../services/websocket.service';
         <!-- Portal de Configurações (Secção 6 do enunciado) -->
         <div *ngIf="activeTab() === 'settings'" class="pane animate-slide-up">
           <div class="settings-stack">
+            <app-production-rules></app-production-rules>
             <app-worker-config></app-worker-config>
             <app-extraction-config></app-extraction-config>
+            <app-customer-simulator></app-customer-simulator>
             <app-bom-config></app-bom-config>
           </div>
         </div>

@@ -23,7 +23,7 @@ public class ProcessingCompletedConsumer {
     @KafkaListener(topics = "processing-completed", groupId = "component-group")
     public void consumeProcessingCompleted(ProcessingCompletedEvent event) {
         log.info("{} | component-service | Evento recebido, entregue à pool de workers (fila: {})",
-                event.getBatchId(), workerPoolService.getQueueSize());
+                event.getPayload().getBatchId(), workerPoolService.getQueueSize());
         workerPoolService.submit(event);
     }
 }

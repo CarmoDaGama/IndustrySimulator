@@ -27,25 +27,25 @@ public class ComponentProducer {
         
         try {
             log.info("Publishing component event [batch={}, correlationId={}]", 
-                    event.getBatchId(), correlationId);
+                    event.getPayload().getBatchId(), correlationId);
 
-            kafkaTemplate.send(TOPIC, event.getBatchId(), event)
+            kafkaTemplate.send(TOPIC, event.getPayload().getBatchId(), event)
                     .whenComplete((result, exception) -> {
                         if (exception == null) {
                             log.info("Successfully published component event [batch={}, correlationId={}, partition={}, offset={}]",
-                                    event.getBatchId(),
+                                    event.getPayload().getBatchId(),
                                     correlationId,
                                     result.getRecordMetadata().partition(),
                                     result.getRecordMetadata().offset());
                         } else {
                             log.error("Failed to publish component event [batch={}, correlationId={}]", 
-                                    event.getBatchId(), correlationId, exception);
+                                    event.getPayload().getBatchId(), correlationId, exception);
                         }
                     });
 
         } catch (Exception e) {
             log.error("Error publishing component [batch={}, correlationId={}]", 
-                    event.getBatchId(), correlationId, e);
+                    event.getPayload().getBatchId(), correlationId, e);
         }
     }
 }

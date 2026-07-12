@@ -6,25 +6,34 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.io.Serializable;
-import java.time.LocalDateTime;
 
 /**
- * Event published when inventory is updated
+ * Notificação da Camada 5. Mantém o mesmo envelope, mas o payload descreve a
+ * alteração de stock (não é um nó da árvore de produção).
  */
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
 public class InventoryUpdatedEvent implements Serializable {
-    private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 2L;
 
     private String eventId;
-    private String componentId;
-    private String componentName;
-    private double quantityBefore;
-    private double quantityAfter;
-    private String operation; // "ADD", "REMOVE", "CONSUME"
-    private LocalDateTime timestamp;
-    private String purpose; // v2 requirement
-    private String reason; // e.g., "production", "order_fulfillment"
+    @Builder.Default
+    private String eventType = "INVENTORY_UPDATED";
+    private long timestamp;
+    private Payload payload;
+
+    @Data
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Builder
+    public static class Payload implements Serializable {
+        private String id;
+        private String name;
+        private double quantityBefore;
+        private double quantityAfter;
+        private String operation; // ADD, REMOVE, RESERVE
+        private String reason;
+    }
 }

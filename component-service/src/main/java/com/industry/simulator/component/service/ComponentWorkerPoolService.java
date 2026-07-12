@@ -2,15 +2,18 @@ package com.industry.simulator.component.service;
 
 import com.industry.simulator.common.events.ComponentAssembledEvent;
 import com.industry.simulator.common.events.ProcessingCompletedEvent;
+import com.industry.simulator.common.worker.ProductionSpec;
+import com.industry.simulator.common.worker.ProductionWorkerPool;
 import com.industry.simulator.common.worker.StepSpec;
-import com.industry.simulator.common.worker.TwoToOneWorkerPool;
 import com.industry.simulator.common.worker.WorkerActivity;
 import com.industry.simulator.component.entity.Component;
 import com.industry.simulator.component.entity.PipelineStep;
+import com.industry.simulator.component.entity.ProductionRule;
 import com.industry.simulator.component.entity.WorkerPoolConfig;
 import com.industry.simulator.component.kafka.ComponentProducer;
 import com.industry.simulator.component.repository.ComponentRepository;
 import com.industry.simulator.component.repository.PipelineStepRepository;
+import com.industry.simulator.component.repository.ProductionRuleRepository;
 import com.industry.simulator.component.repository.WorkerPoolConfigRepository;
 import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;
@@ -20,20 +23,20 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
 /**
- * Camada de Componentes (Camada 3). Cumpre a regra 2:1: consome 2 unidades
- * processadas para produzir 1 componente, bloqueando automaticamente
- * quando a camada anterior não repõe stock a tempo.
+ * Camada 3 (Componentes). Guiada pelas regras de produção do portal: consome
+ * os materiais refinados indicados e produz a peça definida na regra.
  */
 @Service
 public class ComponentWorkerPoolService {
 
     private static final Logger log = LoggerFactory.getLogger(ComponentWorkerPoolService.class);
-    private static final int INPUTS_PER_OUTPUT = 2;
-    private static final long DEFAULT_DURATION_MS = 3000L;
+    private static final String SERVICE = "component-service";
+    private static final String DEFAULT_FACTORY = "manufacturing-hub-gamma";
 
     @Autowired
     private ComponentRepository repository;
@@ -48,27 +51,26 @@ public class ComponentWorkerPoolService {
     private PipelineStepRepository pipelineRepository;
 
     @Autowired
+    private ProductionRuleRepository ruleRepository;
+
+    @Autowired
     private WorkerPoolConfigRepository workerPoolConfigRepository;
 
-    private TwoToOneWorkerPool<ProcessingCompletedEvent, ComponentAssembledEvent> pool;
+    private ProductionWorkerPool<ProcessingCompletedEvent, ComponentAssembledEvent> pool;
 
     @PostConstruct
     public void init() {
-        pool = new TwoToOneWorkerPool<>(
+        pool = new ProductionWorkerPool<>(
                 "component",
-                INPUTS_PER_OUTPUT,
+                this::currentSpecs,
                 this::currentSteps,
+                event -> event.getPayload().getName(),
+                event -> event.getPayload().getBatchId(),
                 this::produce,
                 producer::publishComponentAssembled,
-                this::handleError,
-                ProcessingCompletedEvent::getBatchId
+                this::handleError
         );
         pool.resize(currentWorkerCount());
-    }
-
-    /** Estado ao vivo de cada Worker (etapa em execução) para o portal. */
-    public List<WorkerActivity> getActivities() {
-        return pool.getActivities();
     }
 
     public void submit(ProcessingCompletedEvent event) {
@@ -77,6 +79,8 @@ public class ComponentWorkerPoolService {
 
     public int getWorkerCount() { return pool.getWorkerCount(); }
     public int getQueueSize() { return pool.getQueueSize(); }
+    public Map<String, Integer> getQueueByMaterial() { return pool.getQueueByMaterial(); }
+    public List<WorkerActivity> getActivities() { return pool.getActivities(); }
 
     public synchronized int resize(int workerCount) {
         WorkerPoolConfig config = workerPoolConfigRepository.findById(1L).orElseGet(WorkerPoolConfig::new);
@@ -96,105 +100,118 @@ public class ComponentWorkerPoolService {
                 });
     }
 
-    /** Etapas lidas em tempo real da BD; executadas uma a uma pelos Workers. */
+    private List<ProductionSpec> currentSpecs() {
+        return ruleRepository.findByActiveTrue().stream().map(this::toSpec).collect(Collectors.toList());
+    }
+
+    private ProductionSpec toSpec(ProductionRule rule) {
+        List<ProductionSpec.Input> inputs = rule.getInputs().stream()
+                .map(i -> new ProductionSpec.Input(i.getInputMaterial(), i.getInputQuantity()))
+                .collect(Collectors.toList());
+        return new ProductionSpec(
+                rule.getOutputMaterial(),
+                rule.getOutputType() != null ? rule.getOutputType() : "COMPONENT",
+                rule.getOutputQuantity(),
+                rule.getFactory() != null ? rule.getFactory() : DEFAULT_FACTORY,
+                rule.getTargetProduct(), rule.getTargetComponent(), rule.getDescription(),
+                inputs
+        );
+    }
+
     private List<StepSpec> currentSteps() {
         List<PipelineStep> steps = pipelineRepository.findAllByIsActiveOrderByStepOrderAsc(true);
         if (steps.isEmpty()) {
-            return List.of(new StepSpec("ASSEMBLY", DEFAULT_DURATION_MS));
+            return List.of(new StepSpec("ASSEMBLY", 3000L));
         }
         return steps.stream()
                 .map(s -> new StepSpec(s.getStepName(), s.getDurationMs()))
                 .collect(Collectors.toList());
     }
 
-    private long currentDurationMs() {
-        return currentSteps().stream().mapToLong(StepSpec::getDurationMs).sum();
-    }
-
-    private ComponentAssembledEvent produce(List<ProcessingCompletedEvent> batch) {
-        String outputBatchId = UUID.randomUUID().toString();
-        String sourceBatchIds = batch.stream().map(ProcessingCompletedEvent::getBatchId)
+    private ComponentAssembledEvent produce(ProductionSpec spec, List<ProcessingCompletedEvent> consumed) {
+        String batchId = UUID.randomUUID().toString();
+        String sourceBatchIds = consumed.stream()
+                .map(e -> e.getPayload().getBatchId())
                 .collect(Collectors.joining(","));
-        ProcessingCompletedEvent first = batch.get(0);
-        long durationMs = currentDurationMs();
 
-        log.info("{} | component-service | Consumindo {} unidades processadas ({}) para produzir 1 componente",
-                outputBatchId, batch.size(), sourceBatchIds);
+        // Validação de BOM: todos os insumos consumidos são compatíveis?
+        boolean compatible = consumed.stream()
+                .allMatch(e -> bomValidationService.validateComponentCompatibility(e.getPayload().getName()));
+        String notes = compatible
+                ? "Todos os insumos compatíveis com as regras de BOM"
+                : "Pelo menos um insumo não consta das regras de compatibilidade";
 
-        boolean compatible = bomValidationService.validateComponentCompatibility(
-                first.getProcessedMaterial().getType());
-        String compatibilityNotes = compatible
-                ? "Material compatible with BOM requirements"
-                : "Material may have compatibility issues with BOM";
+        log.info("{} | {} | {} -> {} ({} insumos, compativel={})",
+                batchId, SERVICE, sourceBatchIds, spec.getOutputMaterial(), consumed.size(), compatible);
 
         Component entity = new Component();
-        entity.setBatchId(outputBatchId);
+        entity.setBatchId(batchId);
         entity.setSourceBatchIds(sourceBatchIds);
-        entity.setComponentName(first.getProcessedMaterial().getName());
-        entity.setComponentType(first.getProcessedMaterial().getType());
+        entity.setComponentName(spec.getOutputMaterial());
+        entity.setComponentType(spec.getOutputType());
         entity.setQuantity(1.0);
         entity.setUnit("unit");
-        entity.setProcessingType(first.getProcessingType());
+        entity.setProcessingType(spec.getOutputType());
         entity.setBomValidated(true);
         entity.setCompatible(compatible);
-        entity.setCompatibilityNotes(compatibilityNotes);
-        entity.setPurpose(first.getPurpose());
+        entity.setCompatibilityNotes(notes);
+        entity.setPurpose(spec.getTargetProduct());
         entity.setAssembled(true);
         entity.setCreatedAt(LocalDateTime.now());
         entity.setAssembledAt(LocalDateTime.now());
         repository.save(entity);
 
-        com.industry.simulator.common.model.Component finalPart = com.industry.simulator.common.model.Component.builder()
-                .id("comp-" + outputBatchId.substring(0, 8))
-                .name("Industrial Part: " + first.getProcessedMaterial().getName())
-                .type("COMPONENT")
-                .quantity(1.0)
-                .unit("unit")
-                .batchId(outputBatchId)
-                .createdAt(LocalDateTime.now())
-                .updatedAt(LocalDateTime.now())
-                .producer(com.industry.simulator.common.model.Component.Producer.builder()
-                        .service("component-service")
-                        .factory("manufacturing-hub-gamma")
-                        .build())
-                .purpose(first.getProcessedMaterial().getPurpose())
-                .compatibleForAssembly(compatible)
-                .components(batch.stream().map(ProcessingCompletedEvent::getProcessedMaterial).collect(Collectors.toList()))
-                .build();
+        com.industry.simulator.common.model.Component payload =
+                com.industry.simulator.common.model.Component.builder()
+                        .id(batchId)
+                        .name(spec.getOutputMaterial())
+                        .type(spec.getOutputType())
+                        .quantity(1.0)
+                        .unit("unit")
+                        .batchId(batchId)
+                        .createdAt(LocalDateTime.now())
+                        .updatedAt(LocalDateTime.now())
+                        .producer(com.industry.simulator.common.model.Component.Producer.builder()
+                                .service(SERVICE)
+                                .factory(spec.getFactory())
+                                .build())
+                        .purpose(com.industry.simulator.common.model.Component.Purpose.builder()
+                                .targetProduct(spec.getTargetProduct())
+                                .targetComponent(spec.getTargetComponent())
+                                .description(spec.getDescription())
+                                .build())
+                        .compatibleForAssembly(compatible)
+                        .components(consumed.stream()
+                                .map(ProcessingCompletedEvent::getPayload)
+                                .collect(Collectors.toList()))
+                        .build();
 
         return ComponentAssembledEvent.builder()
                 .eventId(UUID.randomUUID().toString())
                 .eventType("COMPONENT_CREATED")
-                .batchId(outputBatchId)
-                .finalComponent(finalPart)
-                .assemblyDurationMs(durationMs)
-                .timestamp(LocalDateTime.now())
-                .purpose(first.getPurpose())
-                .success(true)
+                .timestamp(System.currentTimeMillis() / 1000)
+                .payload(payload)
                 .build();
     }
 
-    private void handleError(Exception ex, List<ProcessingCompletedEvent> batch) {
-        for (ProcessingCompletedEvent event : batch) {
+    private void handleError(Exception ex, List<ProcessingCompletedEvent> consumed) {
+        for (ProcessingCompletedEvent event : consumed) {
             try {
                 Component errorComponent = new Component();
                 errorComponent.setBatchId(UUID.randomUUID().toString());
-                errorComponent.setSourceBatchIds(event.getBatchId());
-                errorComponent.setComponentName(event.getProcessedMaterial().getName());
-                errorComponent.setComponentType(event.getProcessedMaterial().getType());
+                errorComponent.setSourceBatchIds(event.getPayload().getBatchId());
+                errorComponent.setComponentName(event.getPayload().getName());
+                errorComponent.setComponentType(event.getPayload().getType());
                 errorComponent.setQuantity(1.0);
                 errorComponent.setUnit("unit");
-                errorComponent.setProcessingType(event.getProcessingType());
                 errorComponent.setBomValidated(false);
                 errorComponent.setCompatible(false);
-                errorComponent.setCompatibilityNotes("Assembly failed: " + ex.getMessage());
-                errorComponent.setPurpose(event.getPurpose());
+                errorComponent.setCompatibilityNotes("Falha: " + ex.getMessage());
                 errorComponent.setAssembled(false);
                 errorComponent.setCreatedAt(LocalDateTime.now());
-                errorComponent.setAssembledAt(LocalDateTime.now());
                 repository.save(errorComponent);
             } catch (Exception persistError) {
-                log.error("{} | component-service | Erro ao gravar falha de assembly", event.getBatchId(), persistError);
+                log.error("{} | {} | Erro ao gravar falha", event.getEventId(), SERVICE, persistError);
             }
         }
     }

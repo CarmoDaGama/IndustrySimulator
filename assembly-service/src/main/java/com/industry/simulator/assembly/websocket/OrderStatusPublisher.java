@@ -38,13 +38,11 @@ public class OrderStatusPublisher {
 
         // Bridge to the general Events Monitor
         Map<String, Object> kafkaStyleEvent = new HashMap<>();
+        // Mesmo envelope dos eventos Kafka: {eventId, eventType, timestamp, payload}
         kafkaStyleEvent.put("eventId", java.util.UUID.randomUUID().toString());
-        kafkaStyleEvent.put("eventType", "OrderStatusUpdate");
-        kafkaStyleEvent.put("batchId", orderId);
-        kafkaStyleEvent.put("status", status);
-        kafkaStyleEvent.put("purpose", "order");
-        kafkaStyleEvent.put("timestamp", java.time.LocalDateTime.now().toString());
-        kafkaStyleEvent.put("details", event);
+        kafkaStyleEvent.put("eventType", "ORDER_STATUS_UPDATED");
+        kafkaStyleEvent.put("timestamp", System.currentTimeMillis() / 1000);
+        kafkaStyleEvent.put("payload", event);
         
         messagingTemplate.convertAndSend("/topic/events", kafkaStyleEvent);
     }

@@ -93,3 +93,6 @@ replay_pid*
 # Override local do docker-compose (porta da BD específica da máquina)
 docker-compose.override.yml
 logs/
+
+# Config local da sessao
+.claude/

@@ -27,25 +27,25 @@ public class RawMaterialProducer {
         
         try {
             log.info("Publishing raw material event [batch={}, correlationId={}]", 
-                    event.getBatchId(), correlationId);
+                    event.getPayload().getBatchId(), correlationId);
 
-            kafkaTemplate.send(TOPIC, event.getBatchId(), event)
+            kafkaTemplate.send(TOPIC, event.getPayload().getBatchId(), event)
                     .whenComplete((result, exception) -> {
                         if (exception == null) {
                             log.info("Successfully published raw material [batch={}, correlationId={}, partition={}, offset={}]",
-                                    event.getBatchId(),
+                                    event.getPayload().getBatchId(),
                                     correlationId,
                                     result.getRecordMetadata().partition(),
                                     result.getRecordMetadata().offset());
                         } else {
                             log.error("Failed to publish raw material event [batch={}, correlationId={}]", 
-                                    event.getBatchId(), correlationId, exception);
+                                    event.getPayload().getBatchId(), correlationId, exception);
                         }
                     });
 
         } catch (Exception e) {
             log.error("Error publishing raw material [batch={}, correlationId={}]", 
-                    event.getBatchId(), correlationId, e);
+                    event.getPayload().getBatchId(), correlationId, e);
         }
     }
 }

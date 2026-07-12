@@ -13,12 +13,12 @@ interface EventMeta {
 }
 
 const EVENT_META: Record<string, EventMeta> = {
-  RawMaterialProduced: { label: 'Matéria-prima extraída', layer: 'Camada 1', icon: 'landscape', tone: 't-raw' },
-  ProcessingCompleted: { label: 'Material refinado', layer: 'Camada 2', icon: 'science', tone: 't-processed' },
-  ComponentAssembled: { label: 'Componente produzido', layer: 'Camada 3', icon: 'memory', tone: 't-component' },
-  ProductAssembled: { label: 'Produto montado', layer: 'Camada 4', icon: 'inventory', tone: 't-product' },
-  InventoryUpdated: { label: 'Stock actualizado', layer: 'Camada 5', icon: 'warehouse', tone: 't-stock' },
-  OrderStatusUpdate: { label: 'Encomenda actualizada', layer: 'Camada 6', icon: 'receipt_long', tone: 't-stock' },
+  RAW_MATERIAL_EXTRACTED: { label: 'Matéria-prima extraída', layer: 'Camada 1', icon: 'landscape', tone: 't-raw' },
+  MATERIAL_PROCESSED: { label: 'Material refinado', layer: 'Camada 2', icon: 'science', tone: 't-processed' },
+  COMPONENT_CREATED: { label: 'Componente produzido', layer: 'Camada 3', icon: 'memory', tone: 't-component' },
+  PRODUCT_ASSEMBLED: { label: 'Produto montado', layer: 'Camada 4', icon: 'inventory', tone: 't-product' },
+  INVENTORY_UPDATED: { label: 'Stock actualizado', layer: 'Camada 5', icon: 'warehouse', tone: 't-stock' },
+  ORDER_STATUS_UPDATED: { label: 'Encomenda actualizada', layer: 'Camada 6', icon: 'receipt_long', tone: 't-stock' },
 };
 
 /**
@@ -72,14 +72,14 @@ const EVENT_META: Record<string, EventMeta> = {
             <div class="ev-top">
               <span class="ev-label">{{ meta(event.eventType).label }}</span>
               <span class="ev-layer">{{ meta(event.eventType).layer }}</span>
-              <span class="ev-fail" *ngIf="event.status === 'FAILED'">FALHOU</span>
-              <span class="ev-time">{{ event.timestamp | date: 'HH:mm:ss' }}</span>
+              <span class="ev-fail" *ngIf="event.payload?.status === 'FAILED'">FALHOU</span>
+              <span class="ev-time">{{ event.timestamp * 1000 | date: 'HH:mm:ss' }}</span>
             </div>
 
             <div class="ev-summary">{{ summary(event) }}</div>
 
             <div class="ev-tags">
-              <span class="tag" [title]="event.batchId">lote {{ short(event.batchId) }}</span>
+              <span class="tag" [title]="event.payload?.batchId || event.payload?.id">lote {{ short(event.payload?.batchId || event.payload?.id) }}</span>
               <span class="tag purpose" *ngIf="purposeOf(event) as p">{{ p }}</span>
             </div>
 
@@ -92,7 +92,7 @@ const EVENT_META: Record<string, EventMeta> = {
             <button (click)="toggleRaw(event.eventId)" class="btn-link">
               {{ showRaw[event.eventId] ? 'Ocultar JSON' : 'Ver JSON do evento' }}
             </button>
-            <pre *ngIf="showRaw[event.eventId]" class="json">{{ event.details | json }}</pre>
+            <pre *ngIf="showRaw[event.eventId]" class="json">{{ event.payload | json }}</pre>
           </div>
         </div>
 
@@ -218,32 +218,28 @@ export class EventsMonitorComponent implements OnInit {
 
   /** Frase legível: o que este evento significa na prática. */
   summary(event: KafkaEvent): string {
-    const d: any = event.details || {};
+    const p: any = event.payload || {};
+    const consumidos = p.components?.length ?? 0;
+
     switch (event.eventType) {
-      case 'RawMaterialProduced':
-        return `Extraído ${this.qty(d.quantity, d.unit)} de ${d.material?.name ?? 'matéria-prima'} em ${d.material?.producer?.factory ?? 'fábrica'}.`;
-      case 'ProcessingCompleted': {
-        const consumed = d.processedMaterial?.components?.length ?? 0;
-        return `Refinado ${d.processedMaterial?.name ?? 'material'} a partir de ${consumed} unidade(s) da camada anterior (${d.processingDurationMs ?? 0} ms).`;
-      }
-      case 'ComponentAssembled': {
-        const consumed = d.finalComponent?.components?.length ?? 0;
-        return `Produzida a peça ${d.finalComponent?.name ?? '—'} consumindo ${consumed} material(is) refinado(s).`;
-      }
-      case 'ProductAssembled': {
-        const consumed = d.finalProduct?.components?.length ?? 0;
-        return `Montado ${d.finalProduct?.name ?? 'produto'} a partir de ${consumed} componente(s).`;
-      }
-      case 'InventoryUpdated':
-        return `${d.componentName ?? 'Produto'}: stock passou de ${d.quantityBefore ?? 0} para ${d.quantityAfter ?? 0}.`;
-      case 'OrderStatusUpdate': {
-        const estado = this.orderStatusLabel(d.status ?? event.status);
-        const cliente = d.customerName ? ` de ${d.customerName}` : '';
-        const prod = d.productType ? ` (${d.productType}${d.quantity ? ' ×' + d.quantity : ''})` : '';
+      case 'RAW_MATERIAL_EXTRACTED':
+        return `Extraído ${p.quantity ?? ''} ${p.unit ?? ''} de ${p.name ?? 'matéria-prima'} em ${p.producer?.factory ?? 'fábrica'}.`;
+      case 'MATERIAL_PROCESSED':
+        return `Refinado ${p.name ?? 'material'} a partir de ${consumidos} unidade(s) da camada anterior.`;
+      case 'COMPONENT_CREATED':
+        return `Produzida a peça ${p.name ?? '—'} consumindo ${consumidos} material(is) refinado(s).`;
+      case 'PRODUCT_ASSEMBLED':
+        return `Montado ${p.name ?? 'produto'} a partir de ${consumidos} componente(s) (BOM satisfeita).`;
+      case 'INVENTORY_UPDATED':
+        return `${p.name ?? 'Produto'}: stock passou de ${p.quantityBefore ?? 0} para ${p.quantityAfter ?? 0}.`;
+      case 'ORDER_STATUS_UPDATED': {
+        const estado = this.orderStatusLabel(p.status);
+        const cliente = p.customerName ? ` de ${p.customerName}` : '';
+        const prod = p.productType ? ` (${p.productType}${p.quantity ? ' ×' + p.quantity : ''})` : '';
         return `Encomenda${cliente}${prod}: ${estado}.`;
       }
       default:
-        return d.message ?? `Evento ${event.eventType}.`;
+        return p.message ?? `Evento ${event.eventType}.`;
     }
   }
 
@@ -261,23 +257,14 @@ export class EventsMonitorComponent implements OnInit {
 
   /** O 'purpose' do enunciado (para que serve o item), quando existe. */
   purposeOf(event: KafkaEvent): string | null {
-    const d: any = event.details || {};
-    const node = d.material || d.processedMaterial || d.finalComponent || d.finalProduct;
-    const p = node?.purpose;
+    const p = event.payload?.purpose;
     if (!p || !p.targetProduct) return null;
-    return `para ${p.targetComponent ?? '—'} de ${p.targetProduct}`;
+    return `para ${p.targetComponent || '—'} de ${p.targetProduct}`;
   }
 
   /** Nó da árvore de dependências, se o evento transportar um. */
   treeNode(event: KafkaEvent): any | null {
-    const d: any = event.details || {};
-    const node = d.finalProduct || d.finalComponent || d.processedMaterial;
-    return node?.components?.length ? node : null;
-  }
-
-  private qty(q: any, unit: any): string {
-    if (q == null) return 'material';
-    return `${q}${unit ? ' ' + unit : ''}`;
+    return event.payload?.components?.length ? event.payload : null;
   }
 
   short(id: string): string {

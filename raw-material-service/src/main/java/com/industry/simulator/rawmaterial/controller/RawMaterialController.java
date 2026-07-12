@@ -1,18 +1,20 @@
 package com.industry.simulator.rawmaterial.controller;
 
-import com.industry.simulator.rawmaterial.dto.CreateRawMaterialRequest;
 import com.industry.simulator.rawmaterial.dto.RawMaterialResponse;
 import com.industry.simulator.rawmaterial.entity.RawMaterial;
 import com.industry.simulator.rawmaterial.service.RawMaterialService;
-import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.stream.Collectors;
 
+/**
+ * Apenas leitura/monitorização — o enunciado restringe o REST a monitorização,
+ * logs e configurações. A extracção é autónoma: arranca a partir dos recursos
+ * configurados em /api/raw-materials/extraction-config, não por chamadas HTTP.
+ */
 @RestController
 @CrossOrigin("*")
 @RequestMapping("/api/raw-materials")
@@ -20,17 +22,6 @@ public class RawMaterialController {
 
     @Autowired
     private RawMaterialService service;
-
-    @PostMapping
-    public ResponseEntity<RawMaterialResponse> createRawMaterial(@Valid @RequestBody CreateRawMaterialRequest request) {
-        RawMaterial material = service.createRawMaterial(
-                request.getMaterialName(),
-                request.getMaterialType(),
-                request.getQuantity(),
-                request.getUnit()
-        );
-        return ResponseEntity.status(HttpStatus.CREATED).body(toResponse(material));
-    }
 
     @GetMapping
     public ResponseEntity<List<RawMaterialResponse>> getAllRawMaterials() {

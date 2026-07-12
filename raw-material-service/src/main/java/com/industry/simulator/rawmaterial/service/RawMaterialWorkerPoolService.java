@@ -164,13 +164,8 @@ public class RawMaterialWorkerPoolService {
         return RawMaterialProducedEvent.builder()
                 .eventId(UUID.randomUUID().toString())
                 .eventType("RAW_MATERIAL_EXTRACTED")
-                .batchId(batchId)
-                .material(component)
-                .quantity(config.getQuantityPerCycle())
-                .unit(config.getUnit())
-                .timestamp(LocalDateTime.now())
-                .purpose("processing")
-                .sourceService("raw-material-service")
+                .timestamp(System.currentTimeMillis() / 1000)
+                .payload(component)
                 .build();
     }
 }

@@ -23,10 +23,11 @@ public class InventoryUpdatedConsumer {
 
     @KafkaListener(topics = "inventory-updated", groupId = "assembly-market-group")
     public void consumeInventoryUpdated(InventoryUpdatedEvent event) {
-        if (!"ADD".equalsIgnoreCase(event.getOperation())) {
+        InventoryUpdatedEvent.Payload payload = event.getPayload();
+        if (payload == null || !"ADD".equalsIgnoreCase(payload.getOperation())) {
             return;
         }
-        log.info("{} | assembly-service | Stock reposto, a tentar desbloquear pedidos PENDENTES", event.getComponentName());
-        marketOrderService.tryAllocatePendingOrders(event.getComponentName());
+        log.info("{} | assembly-service | Stock reposto, a tentar desbloquear pedidos PENDENTES", payload.getName());
+        marketOrderService.tryAllocatePendingOrders(payload.getName());
     }
 }

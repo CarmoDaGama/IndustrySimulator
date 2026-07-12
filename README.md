@@ -54,8 +54,14 @@ cd frontend-angular && npm install && npm start   # http://localhost:4200
 
 **Login do portal:** `admin` / `admin123`
 
-> **A cadeia arranca vazia por desenho.** A Camada 1 só extrai depois de configurada.
-> Vá a **Configurações → Recursos Extraídos** e adicione um recurso (ex.: Ferro), ou:
+> **A cadeia arranca vazia por desenho** — "a produção inicia assim que existirem
+> configurações e matérias-primas disponíveis". São precisas **duas** configurações:
+>
+> 1. **Configurações → Recursos Extraídos** — o que a Camada 1 extrai.
+> 2. **Configurações → Regras de Produção / BOM** — o que cada camada consome e produz.
+>    Sem regras, as Camadas 2–4 ficam bloqueadas.
+>
+> Exemplo de recurso a extrair:
 >
 > ```bash
 > curl -X POST http://localhost:8081/api/raw-materials/extraction-config \
@@ -93,9 +99,9 @@ microserviço**. Nenhum serviço acede à base de dados de outro.
 | Serviço | Base de dados | Tabelas |
 |---|---|---|
 | raw-material | `raw_material_db` | raw_materials, extraction_config, worker_pool_config |
-| processing | `processing_db` | processed_materials, pipeline_step, worker_pool_config |
-| component | `component_db` | components, pipeline_step, compatible_material, worker_pool_config |
-| assembly | `assembly_db` | products, inventory, market_order, pipeline_step, worker_pool_config |
+| processing | `processing_db` | processed_materials, production_rule(+_input), pipeline_step, worker_pool_config |
+| component | `component_db` | components, production_rule(+_input), compatible_material, pipeline_step, worker_pool_config |
+| assembly | `assembly_db` | products, inventory, market_order, production_rule(+_input), customer_simulator_config, pipeline_step, worker_pool_config |
 
 ### Restrição de Docker
 
@@ -106,7 +112,8 @@ nativamente (`java -jar`) — **não existem Dockerfiles** para eles, por exigê
 
 ```
 common-models/            Modelos e eventos partilhados + os pools de Workers
-  └─ worker/              TwoToOneWorkerPool, ContinuousWorkerPool, StepSpec, WorkerActivity
+  └─ worker/              ProductionWorkerPool, ContinuousWorkerPool, ProductionSpec,
+                          StepSpec, WorkerActivity
 raw-material-service/     Camada 1 — extracção autónoma
 processing-service/       Camada 2 — refinação
 component-service/        Camada 3 — peças + validação BOM
@@ -125,31 +132,30 @@ Cada microserviço tem uma **pool de Workers**, e cada Worker **é uma Thread re
 representa uma linha de produção activa. Não são `CompletableFuture` nem o pool comum da JVM —
 são threads dedicadas, com estado próprio e ciclo de vida gerido.
 
-> **Código:** `common-models/src/main/java/com/industry/simulator/common/worker/TwoToOneWorkerPool.java`
+> **Código:** `common-models/src/main/java/com/industry/simulator/common/worker/ProductionWorkerPool.java`
 > — classe interna `Worker extends Thread`.
 
 O número de Workers é **parametrizável em runtime** pelo portal (`PUT /workers`), sem reiniciar
 o serviço: `resize()` cria ou termina threads conforme necessário.
 
-### 3.2 Regra de consumo 2:1
+### 3.2 Regra de consumo da cadeia
 
-Excepto nas Camadas 1 e 6, **cada unidade produzida consome 2 unidades da camada anterior**.
-Está implementado no ciclo do Worker, que só avança depois de retirar 2 itens da fila:
+Excepto nas Camadas 1 e 6, **cada unidade produzida consome no mínimo 2 unidades da camada
+anterior**. A quantidade exacta vem da regra configurada, e o portal **recusa** regras que
+consumam menos de 2 — a regra do enunciado é validada, não presumida.
 
-```java
-for (int i = 0; i < inputsPerOutput; i++) {   // inputsPerOutput = 2
-    IN item = inputQueue.take();              // bloqueia se não houver
-    batch.add(item);
-}
-```
+Os insumos que chegam são arrumados em **filas por material**. O Worker procura uma regra cujos
+insumos estejam *todos* satisfeitos e consome exactamente as quantidades exigidas.
 
-**Consequência observável:** para sair 1 produto final são precisas 8 matérias-primas
-(8 → 4 → 2 → 1). É por isso que uma única matéria-prima "não faz nada" — está correcto.
+**Consequência observável:** para sair 1 Carro (`Motor ×1 + Pneus ×4`, com cada Motor a exigir
+`Aço ×2` e cada Pneu `Borracha ×2`) são precisas dezenas de matérias-primas. É por isso que uma
+única matéria-prima "não faz nada" — está correcto.
 
 ### 3.3 Bloqueio por escassez
 
-`BlockingQueue.take()` bloqueia a Thread quando a camada anterior esgota. O Worker não faz
-*polling* nem consome CPU: fica suspenso até chegar um novo evento de reabastecimento.
+Enquanto nenhuma regra tiver todos os seus insumos disponíveis, o Worker fica suspenso numa
+`Condition` — não faz *polling* nem consome CPU. Sem regras configuradas, fica igualmente
+bloqueado: "a produção inicia assim que existirem configurações e matérias-primas disponíveis".
 No portal, esses Workers aparecem a **laranja (BLOCKED)**.
 
 ### 3.4 Pipeline com tempo, etapa a etapa
@@ -165,15 +171,43 @@ for (StepSpec step : stepsSupplier.get()) {   // etapas vindas da BD
 }
 ```
 
-### 3.5 Genericidade (nada hardcoded)
+### 3.5 Mapeamento genérico e árvore BOM
+
+As regras de produção vivem em BD e são editadas no portal. Como uma regra aceita **vários
+insumos**, a mesma estrutura cobre os dois requisitos da Secção 6.3:
+
+| Uso | Exemplo |
+|---|---|
+| Regra de transformação | `Minério de Ferro ×2 → Aço ×1` |
+| **Árvore de componentes (BOM)** | `Motor ×1 + Pneus ×4 → Carro ×1` |
+
+O Worker só arranca quando **todos** os insumos de alguma regra estiverem disponíveis; enquanto
+não estiverem, bloqueia. É por isso que, com 7 Motores e 7 Pneus, sai **1 Carro** (cada carro
+exige 4 pneus) — a BOM é respeitada à letra.
+
+O portal recusa regras que consumam menos de 2 unidades da camada anterior, garantindo a regra
+de consumo da cadeia.
+
+### 3.6 Simulação automática de clientes (Camada 6)
+
+Os clientes fictícios são **Threads** que, em ciclo, "pensam" durante um tempo configurável e
+encomendam um dos produtos que a fábrica sabe montar (vindos das regras da Camada 4). Se não
+houver stock, o pedido fica `PENDENTE` e é desbloqueado automaticamente quando o inventário for
+reposto — nenhuma intervenção humana é necessária.
+
+Configura-se em **Configurações → Clientes Fictícios** (nº de clientes, intervalo, quantidades).
+
+### 3.7 Genericidade (nada hardcoded)
 
 Todos os nomes, tempos e regras vivem em **base de dados**, editáveis pelo portal:
 
 | O quê | Tabela |
 |---|---|
 | Recursos a extrair, tempos e `purpose` | `extraction_config` |
+| **Regras de transformação e árvore BOM** | `production_rule` + `production_rule_input` |
 | Etapas e durações da pipeline | `pipeline_step` (uma por serviço) |
 | Nº de Workers | `worker_pool_config` |
+| Clientes fictícios (Camada 6) | `customer_simulator_config` |
 | Regras de compatibilidade BOM | `compatible_material` |
 
 ---
@@ -185,7 +219,7 @@ Todos os nomes, tempos e regras vivem em **base de dados**, editáveis pelo port
 | Separador | Conteúdo |
 |---|---|
 | **Operações** | Pipeline por microserviço (etapas + `durationMs`), criação de encomendas |
-| **Configurações** | Nº de Workers por microserviço, recursos extraídos (Camada 1), regras BOM |
+| **Configurações** | **Regras de Produção / BOM**, nº de Workers, recursos extraídos (Camada 1), clientes fictícios, compatibilidade BOM |
 | **Live Monitor** | **Processos em execução** (etapa actual de cada Worker), eventos Kafka, inventário |
 
 ### Monitor de processos
@@ -232,9 +266,10 @@ curl http://localhost:8082/api/processing/workers/activity
 
 Mostra cada Thread, o seu estado e a etapa actual — ou abra **Live Monitor** no portal.
 
-### Regra 2:1
+### Regra de consumo e árvore BOM
 
-Deixe a cadeia correr e compare as contagens: cada camada produz ~metade da anterior.
+Deixe a cadeia correr e compare as contagens por material: cada camada produz muito menos do que
+consome, na proporção definida nas regras.
 
 ```bash
 curl -s http://localhost:8081/api/raw-materials | grep -o '"batchId"' | wc -l
@@ -300,6 +335,11 @@ Substitua `{base}` por `raw-materials` (8081), `processing` (8082), `components`
 | Método | Endpoint | Descrição |
 |---|---|---|
 | `GET/POST/PUT/DELETE` | `:8081/api/raw-materials/extraction-config` | Recursos extraídos pela Camada 1 |
+| `GET/POST/DELETE` | `:8082/api/processing/production-rules` | Regras de transformação (Camada 2) |
+| `GET/POST/DELETE` | `:8083/api/components/production-rules` | Regras de peças (Camada 3) |
+| `GET/POST/DELETE` | `:8084/api/assembly/production-rules` | **Árvore BOM** dos produtos (Camada 4) |
+| `GET/PUT` | `:8084/api/market/customers` | Simulação de clientes fictícios |
+| `GET` | `:8084/api/market/customers/catalog` | Produtos que a fábrica sabe montar |
 | `GET/POST/DELETE` | `:8083/api/components/bom/compatible-materials` | Regras de compatibilidade BOM |
 | `GET` | `:8084/api/inventory` | Stock global (Camada 5) |
 | `GET/POST` | `:8084/api/market-orders` | Encomendas (Camada 6) |
@@ -333,19 +373,36 @@ Todo o item da cadeia que circula em Kafka respeita o contrato obrigatório:
 }
 ```
 
-`components[]` é preenchido com as **2 unidades** consumidas, formando a árvore de dependências
-recursiva até à matéria-prima.
+`components[]` é preenchido com **todas as unidades consumidas** pela regra, formando a árvore de
+dependências recursiva até à matéria-prima. Num Carro, por exemplo:
+
+```
+Carro
+├── Motor   (← Aço ×2 ← Minério de Ferro ×4)
+├── Pneu    (← Borracha ×2 ← Areia ×4)
+├── Pneu
+├── Pneu
+└── Pneu
+```
+
+Todos os eventos usam o mesmo envelope `{eventId, eventType, timestamp, payload}`.
 
 ---
 
 ## 8. Resolução de problemas
 
 **A cadeia não produz nada.**
-Falta configurar um recurso de extracção (ver [Arranque rápido](#1-arranque-rápido)). Sem isso,
-os Workers da Camada 1 ficam `IDLE` e nada entra na cadeia.
+Faltam configurações. A Camada 1 precisa de um **recurso de extracção**; as Camadas 2–4 precisam
+de **regras de produção**. Sem elas, os Workers ficam `IDLE`/`BLOCKED` — que é o comportamento
+correcto segundo o enunciado.
 
-**Só saiu 1 produto e eu criei 8 matérias-primas.**
-Correcto — é a regra 2:1 (8 → 4 → 2 → 1).
+**Produziram-se muitos componentes mas poucos produtos finais.**
+Correcto — é a BOM a ser respeitada. Se um Carro exige 4 Pneus, 7 Pneus só dão para 1 Carro.
+Veja em **Live Monitor** que camada está `BLOCKED` e que fila está a crescer: é o gargalo.
+
+**Os clientes não encomendam nada.**
+A simulação arranca a 0 clientes. Ligue-a em **Configurações → Clientes Fictícios**. Se o
+catálogo estiver vazio, configure primeiro as regras de produção da Camada 4.
 
 **A porta 5432 já está ocupada.**
 Se outro PostgreSQL local usar a 5432, crie um `docker-compose.override.yml` (não versionado):

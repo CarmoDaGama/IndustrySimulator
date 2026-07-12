@@ -27,25 +27,25 @@ public class ProcessingProducer {
         
         try {
             log.info("Publishing processing event [batch={}, correlationId={}]", 
-                    event.getBatchId(), correlationId);
+                    event.getPayload().getBatchId(), correlationId);
 
-            kafkaTemplate.send(TOPIC, event.getBatchId(), event)
+            kafkaTemplate.send(TOPIC, event.getPayload().getBatchId(), event)
                     .whenComplete((result, exception) -> {
                         if (exception == null) {
                             log.info("Successfully published processing event [batch={}, correlationId={}, partition={}, offset={}]",
-                                    event.getBatchId(),
+                                    event.getPayload().getBatchId(),
                                     correlationId,
                                     result.getRecordMetadata().partition(),
                                     result.getRecordMetadata().offset());
                         } else {
                             log.error("Failed to publish processing event [batch={}, correlationId={}]", 
-                                    event.getBatchId(), correlationId, exception);
+                                    event.getPayload().getBatchId(), correlationId, exception);
                         }
                     });
 
         } catch (Exception e) {
             log.error("Error publishing processing [batch={}, correlationId={}]", 
-                    event.getBatchId(), correlationId, e);
+                    event.getPayload().getBatchId(), correlationId, e);
         }
     }
 }

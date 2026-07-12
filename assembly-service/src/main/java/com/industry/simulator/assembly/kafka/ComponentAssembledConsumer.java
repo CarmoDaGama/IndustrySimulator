@@ -23,7 +23,7 @@ public class ComponentAssembledConsumer {
     @KafkaListener(topics = "component-assembled", groupId = "assembly-group")
     public void consumeComponentAssembled(ComponentAssembledEvent event) {
         log.info("{} | assembly-service | Evento recebido, entregue à pool de workers (fila: {})",
-                event.getBatchId(), workerPoolService.getQueueSize());
+                event.getPayload().getBatchId(), workerPoolService.getQueueSize());
         workerPoolService.submit(event);
     }
 }

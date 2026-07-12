@@ -7,26 +7,22 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.io.Serializable;
-import java.time.LocalDateTime;
 
 /**
- * Event published by raw-material-service when raw materials are produced
+ * Evento publicado pela Camada 1. Segue o envelope obrigatório do enunciado:
+ * {@code {eventId, eventType, timestamp, payload}}, onde o payload é o nó da
+ * árvore (id, name, purpose, producer, components).
  */
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
 public class RawMaterialProducedEvent implements Serializable {
-    private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 2L;
 
     private String eventId;
     @Builder.Default
     private String eventType = "RAW_MATERIAL_EXTRACTED";
-    private String batchId;
-    private Component material;
-    private double quantity;
-    private String unit;
-    private LocalDateTime timestamp;
-    private String purpose; // v2 requirement: purpose of material (e.g., "assembly", "testing")
-    private String sourceService;
+    private long timestamp;
+    private Component payload;
 }

@@ -16,6 +16,8 @@ import {
   WorkerActivity,
   ExtractionConfig,
   CompatibleMaterial,
+  ProductionRule,
+  CustomerSimulatorConfig,
 } from '../models';
 
 /**
@@ -211,6 +213,67 @@ export class ApiService {
   deleteExtractionConfig(id: number): Observable<void> {
     return this.http
       .delete<void>(`${this.rawMaterialUrl}/extraction-config/${id}`)
+      .pipe(catchError((error) => this.handleError(error)));
+  }
+
+  // --- Regras de produção / BOM (Secção 6.3) ---
+
+  /** Camadas com regras de produção configuráveis. */
+  private ruleRoot(service: ServiceKey): string {
+    switch (service) {
+      case 'processing':
+        return `${this.processingUrl}/production-rules`;
+      case 'component':
+        return `${this.componentUrl}/production-rules`;
+      default:
+        return `${this.assemblyUrl}/assembly/production-rules`;
+    }
+  }
+
+  getProductionRules(service: ServiceKey): Observable<ProductionRule[]> {
+    return this.http
+      .get<ProductionRule[]>(this.ruleRoot(service))
+      .pipe(catchError((error) => this.handleError(error)));
+  }
+
+  createProductionRule(service: ServiceKey, rule: ProductionRule): Observable<ProductionRule> {
+    this.setLoading(true);
+    return this.http
+      .post<ProductionRule>(this.ruleRoot(service), rule)
+      .pipe(
+        tap(() => this.setLoading(false)),
+        catchError((error) => this.handleError(error))
+      );
+  }
+
+  deleteProductionRule(service: ServiceKey, id: number): Observable<void> {
+    return this.http
+      .delete<void>(`${this.ruleRoot(service)}/${id}`)
+      .pipe(catchError((error) => this.handleError(error)));
+  }
+
+  // --- Camada 6: simulação de clientes fictícios ---
+
+  getCustomerSimulator(): Observable<CustomerSimulatorConfig> {
+    return this.http
+      .get<CustomerSimulatorConfig>(`${this.assemblyUrl}/market/customers`)
+      .pipe(catchError((error) => this.handleError(error)));
+  }
+
+  updateCustomerSimulator(config: CustomerSimulatorConfig): Observable<CustomerSimulatorConfig> {
+    this.setLoading(true);
+    return this.http
+      .put<CustomerSimulatorConfig>(`${this.assemblyUrl}/market/customers`, config)
+      .pipe(
+        tap(() => this.setLoading(false)),
+        catchError((error) => this.handleError(error))
+      );
+  }
+
+  /** Produtos que a fábrica sabe montar (vêm das regras da Camada 4). */
+  getProductCatalog(): Observable<string[]> {
+    return this.http
+      .get<string[]>(`${this.assemblyUrl}/market/customers/catalog`)
       .pipe(catchError((error) => this.handleError(error)));
   }
 

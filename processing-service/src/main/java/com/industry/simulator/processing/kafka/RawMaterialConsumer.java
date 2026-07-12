@@ -25,7 +25,7 @@ public class RawMaterialConsumer {
     @KafkaListener(topics = "raw-material-produced", groupId = "processing-group")
     public void consumeRawMaterial(RawMaterialProducedEvent event) {
         log.info("{} | processing-service | Evento recebido, entregue à pool de workers (fila: {})",
-                event.getBatchId(), workerPoolService.getQueueSize());
+                event.getPayload().getBatchId(), workerPoolService.getQueueSize());
         workerPoolService.submit(event);
     }
 }

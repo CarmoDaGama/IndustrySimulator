@@ -52,6 +52,40 @@ export interface ExtractionConfig {
   active: boolean;
 }
 
+/** Um insumo exigido por uma regra de produção. */
+export interface ProductionRuleInput {
+  id?: number;
+  inputMaterial: string;
+  inputType?: string;
+  inputQuantity: number;
+}
+
+/**
+ * Regra de produção (Secção 6.3): mapeamento genérico e árvore BOM.
+ * Com vários inputs, cobre tanto "Ferro ×2 → Aço ×1" como
+ * "Motor ×1 + Pneus ×4 → Carro ×1".
+ */
+export interface ProductionRule {
+  id?: number;
+  outputMaterial: string;
+  outputType?: string;
+  outputQuantity: number;
+  factory?: string;
+  targetProduct?: string;
+  targetComponent?: string;
+  description?: string;
+  active: boolean;
+  inputs: ProductionRuleInput[];
+}
+
+/** Simulação de clientes fictícios (Camada 6). */
+export interface CustomerSimulatorConfig {
+  customerCount: number;
+  thinkTimeMs: number;
+  minQuantity: number;
+  maxQuantity: number;
+}
+
 /** Regra de compatibilidade BOM (mapeamento genérico, vinda da BD). */
 export interface CompatibleMaterial {
   id?: number;
@@ -157,14 +191,14 @@ export interface AssembledProduct {
   notes: string;
 }
 
+/** Envelope padrão do enunciado: {eventId, eventType, timestamp, payload}. */
 export interface KafkaEvent {
   eventId: string;
   eventType: string;
-  timestamp: Date;
-  batchId: string;
-  status: string;
-  details: any;
-  purpose: string;
+  /** epoch (segundos). */
+  timestamp: number;
+  /** Nó da árvore (id, name, purpose, producer, components) ou payload da notificação. */
+  payload: any;
 }
 
 export interface ProductionRequest {

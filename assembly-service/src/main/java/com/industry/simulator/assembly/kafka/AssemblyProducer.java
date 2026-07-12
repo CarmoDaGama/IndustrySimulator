@@ -30,25 +30,25 @@ public class AssemblyProducer {
         
         try {
             log.info("Publishing product event [productId={}, correlationId={}]", 
-                    event.getProductId(), correlationId);
+                    event.getPayload().getId(), correlationId);
 
-            productTemplate.send(topic, event.getProductId(), event)
+            productTemplate.send(topic, event.getPayload().getId(), event)
                     .whenComplete((result, exception) -> {
                         if (exception == null) {
                             log.info("Successfully published product event [productId={}, correlationId={}, partition={}, offset={}]",
-                                    event.getProductId(),
+                                    event.getPayload().getId(),
                                     correlationId,
                                     result.getRecordMetadata().partition(),
                                     result.getRecordMetadata().offset());
                         } else {
                             log.error("Failed to publish product event [productId={}, correlationId={}]", 
-                                    event.getProductId(), correlationId, exception);
+                                    event.getPayload().getId(), correlationId, exception);
                         }
                     });
 
         } catch (Exception e) {
             log.error("Error publishing product [productId={}, correlationId={}]", 
-                    event.getProductId(), correlationId, e);
+                    event.getPayload().getId(), correlationId, e);
         }
     }
 
@@ -58,25 +58,25 @@ public class AssemblyProducer {
         
         try {
             log.info("Publishing inventory event [componentId={}, correlationId={}]", 
-                    event.getComponentId(), correlationId);
+                    event.getPayload().getId(), correlationId);
 
-            inventoryTemplate.send(topic, event.getComponentId(), event)
+            inventoryTemplate.send(topic, event.getPayload().getId(), event)
                     .whenComplete((result, exception) -> {
                         if (exception == null) {
                             log.info("Successfully published inventory event [componentId={}, correlationId={}, partition={}, offset={}]",
-                                    event.getComponentId(),
+                                    event.getPayload().getId(),
                                     correlationId,
                                     result.getRecordMetadata().partition(),
                                     result.getRecordMetadata().offset());
                         } else {
                             log.error("Failed to publish inventory event [componentId={}, correlationId={}]", 
-                                    event.getComponentId(), correlationId, exception);
+                                    event.getPayload().getId(), correlationId, exception);
                         }
                     });
 
         } catch (Exception e) {
             log.error("Error publishing inventory [componentId={}, correlationId={}]", 
-                    event.getComponentId(), correlationId, e);
+                    event.getPayload().getId(), correlationId, e);
         }
     }
 }

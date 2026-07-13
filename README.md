@@ -55,21 +55,16 @@ cd frontend-angular && npm install && npm start   # http://localhost:4200
 **Login do portal:** `admin` / `admin123`
 
 > **A cadeia arranca vazia por desenho** — "a produção inicia assim que existirem
-> configurações e matérias-primas disponíveis". São precisas **duas** configurações:
+> configurações e matérias-primas disponíveis". São precisas **três** configurações, todas no
+> portal:
 >
-> 1. **Configurações → Recursos Extraídos** — o que a Camada 1 extrai.
-> 2. **Configurações → Regras de Produção / BOM** — o que cada camada consome e produz.
->    Sem regras, as Camadas 2–4 ficam bloqueadas.
+> 1. **Configurações → Recursos Extraídos** — *o quê*: os recursos que a Camada 1 extrai.
+> 2. **Configurações → Regras de Produção / BOM** — *como*: o que cada camada consome e produz.
+> 3. **Pipelines** — *quanto tempo*: as etapas de cada camada. Sem pipeline não há tempos, e a
+>    camada não produz.
 >
-> Exemplo de recurso a extrair:
->
-> ```bash
-> curl -X POST http://localhost:8081/api/raw-materials/extraction-config \
->   -H "Content-Type: application/json" \
->   -d '{"materialName":"Ferro","materialType":"steel","quantityPerCycle":1,"unit":"kg",
->        "extractionDurationMs":3000,"transportDurationMs":1000,"factory":"mina-luanda",
->        "targetProduct":"CAR","targetComponent":"ENGINE","description":"Aço para motor","active":true}'
-> ```
+> Falhando qualquer uma delas, os Workers ficam `IDLE`/`BLOCKED` — é o comportamento correcto,
+> não uma avaria.
 
 ---
 
@@ -391,10 +386,44 @@ Todos os eventos usam o mesmo envelope `{eventId, eventType, timestamp, payload}
 
 ## 8. Resolução de problemas
 
+**`password authentication failed for user "industry_user"`**
+Os serviços estão a falar com **outro** PostgreSQL — não com o do simulador. Duas causas comuns,
+muitas vezes em conjunto:
+
+1. **Existe um `docker-compose.override.yml` na pasta.** Ele muda o Postgres do simulador para
+   outra porta (ex.: 5442) e é específico da máquina onde foi criado. Não está versionado, por
+   isso um `git clone` nunca o traz — mas **copiar a pasta** traz. Se não precisa dele, apague-o:
+   ```bash
+   rm docker-compose.override.yml
+   ```
+2. **Há um PostgreSQL nativo a ocupar a porta 5432.** É ele que responde e rejeita as
+   credenciais (se não houvesse nada à escuta, o erro seria *connection refused*). Verifique e
+   pare-o:
+   ```bash
+   sudo ss -lntp | grep 5432          # quem está na porta?
+   sudo systemctl stop postgresql     # se for o Postgres do sistema
+   sudo systemctl disable postgresql
+   ```
+
+Depois, recrie a infraestrutura e confirme que é o nosso Postgres a responder:
+
+```bash
+docker compose down -v     # -v recria a base de dados de raiz
+docker compose up -d
+docker exec industry-postgres psql -U industry_user -c "\l"   # deve listar as 4 bases
+```
+
+> **Prefira `git clone` a copiar a pasta.** A cópia arrasta ficheiros locais (`docker-compose.override.yml`,
+> `logs/`, `target/`) que causam exactamente este tipo de problema noutra máquina.
+
 **A cadeia não produz nada.**
-Faltam configurações. A Camada 1 precisa de um **recurso de extracção**; as Camadas 2–4 precisam
-de **regras de produção**. Sem elas, os Workers ficam `IDLE`/`BLOCKED` — que é o comportamento
-correcto segundo o enunciado.
+Faltam configurações. São precisas **três**, e sem qualquer uma delas os Workers ficam
+`IDLE`/`BLOCKED` — que é o comportamento correcto segundo o enunciado:
+
+1. **Recursos extraídos** (Camada 1) — o que a fábrica extrai.
+2. **Regras de produção / BOM** (Camadas 2–4) — o que cada camada consome e produz.
+3. **Pipelines** (todas as camadas) — os tempos de cada etapa. **Sem pipeline não há tempos, e
+   sem tempos não há produção** (produção instantânea é proibida).
 
 **Produziram-se muitos componentes mas poucos produtos finais.**
 Correcto — é a BOM a ser respeitada. Se um Carro exige 4 Pneus, 7 Pneus só dão para 1 Carro.
@@ -404,8 +433,10 @@ Veja em **Live Monitor** que camada está `BLOCKED` e que fila está a crescer: 
 A simulação arranca a 0 clientes. Ligue-a em **Configurações → Clientes Fictícios**. Se o
 catálogo estiver vazio, configure primeiro as regras de produção da Camada 4.
 
-**A porta 5432 já está ocupada.**
-Se outro PostgreSQL local usar a 5432, crie um `docker-compose.override.yml` (não versionado):
+**A porta 5432 já está ocupada e quero manter o outro PostgreSQL a correr.**
+A alternativa a pará-lo é expor o Postgres do simulador noutra porta. Crie um
+`docker-compose.override.yml` — **local, nunca versionado, e que não deve ser copiado para outra
+máquina** (é a causa do erro de autenticação descrito acima):
 
 ```yaml
 services:
@@ -414,12 +445,15 @@ services:
       - "5442:5432"
 ```
 
-E arranque cada serviço apontando para a nova porta:
+Nesse caso, **todos** os serviços têm de ser arrancados a apontar para a nova porta, senão vão
+ligar-se ao PostgreSQL errado:
 
 ```bash
 SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:5442/processing_db \
   java -jar processing-service/target/processing-service-1.0.0-SNAPSHOT.jar
 ```
+
+Para saber em que porta está o Postgres do simulador: `docker compose port postgres 5432`.
 
 **Os tópicos Kafka não existem.**
 
